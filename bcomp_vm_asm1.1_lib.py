@@ -1,7 +1,7 @@
 import sys
 from lib import *
 import matrixLib
-import keyboard
+import keyboard # type: ignore
 from time import sleep
 
 if len(sys.argv) > 1 and not ".o" in sys.argv[1]:
@@ -352,8 +352,8 @@ bcomp = Bcomp(16)
 
 
 def loadProgram(file_path):
-    self.rom = []
-    self.break_points = []
+    rom = []
+    break_points = []
 
     print(f"--- Loading program to ROM: {AQUA}{file_path}{WHITE}")
 
@@ -369,8 +369,8 @@ def loadProgram(file_path):
 
             #print(f"{GRAY}{arg} {AQUA}{ins}{WHITE}")
 
-            self.rom.append([arg, ins])
-            self.break_points.append(0)
+            rom.append([arg, ins])
+            break_points.append(0)
 
 
 
@@ -398,16 +398,16 @@ def commandHelp():
 
 def commandDumpRom(self):
     print("The ROM:")
-    for i, line in enumerate(rom):
-        command_name = getMnemonic(line[1]).upper()
+    for i, line in enumerate(bcomp.rom):
+        command_name = bcomp.getMnemonic(line[1]).upper()
         break_point = " "
         if break_points[i] == 1: break_point = f'{YELLOW}#{WHITE}'
         if break_points[i] == 2: break_point = f'{RED}#{WHITE}'
         arrow = f"{WHITE}->" if result == "" else f"{GRAY}->"
-        if result != "" and counter == i + (0 if has_jumped else 1): arrow = f"{YELLOW}->"
+        if result != "" and counter == i + (0 if bcomp.has_jumped else 1): arrow = f"{YELLOW}->"
         print(f"{i:>4d}: {GRAY}{line[0]} {AQUA}{line[1]}{WHITE} {break_point} {arrow} {AQUA}{command_name}{GRAY} {binToDec(line[0])}{WHITE}")
 
-    print(f"{len(rom)} adresses used")
+    print(f"{len(bcomp.rom)} adresses used")
 
 def commandDumpRam():
     segment_size = 48
@@ -424,9 +424,9 @@ def commandDumpRam():
 
 def commandDumpReg():
     print("Registers:")
-    for _, name in enumerate(registers):
-        value = registers[name]
-        print(f"{AQUA}{name.ljust(3, ' ')} {WHITE}{value:<5d} {GRAY}{decToBin(value, NUMBER_OF_BITS)}{WHITE}")
+    for _, name in enumerate(bcomp.registers):
+        value = bcomp.registers[name]
+        print(f"{AQUA}{name.ljust(3, ' ')} {WHITE}{value:<5d} {GRAY}{decToBin(value, bcomp.NUMBER_OF_BITS)}{WHITE}")
 
 def commandDumpPort():
     print(       f"{AQUA}Input ports:             Output ports:")
@@ -440,8 +440,8 @@ def commandDumpPort():
     print(f"{GRAY}7: {WHITE}-                     -")
 
 def commandDumpStack():
-    print(f"The call stack ({len(call_stack)}):")
-    for i, line in enumerate(call_stack):
+    print(f"The call stack ({len(bcomp.call_stack)}):")
+    for i, line in enumerate(bcomp.call_stack):
         print(f"{i:>3d}: {AQUA}{line}{WHITE}")
 
 def commandDebugOn():
@@ -522,7 +522,7 @@ def commandReset():
 
     counter = 0
     debug = False
-    memory = initialiseMemory()
+    memory = bcomp.initialiseMemory()
     commandBreakpointClear()
 
 
@@ -530,14 +530,8 @@ def commandReset():
 ## Start of the main script ##
 ##############################
 
-memory = initialiseMemory()
-
 #Load commands and construct key lookup table
 print(f"--- Loading {AQUA}commands{WHITE}")
-
-commands = load_commands(False)
-command_lookup = ["" for _ in range(0, 32)]
-for key in commands: command_lookup[int(commands[key][0])] = key
 
 if len(sys.argv) >= 2: loadProgram(sys.argv[1])
 
@@ -576,13 +570,13 @@ while user_in != "exit":
         if result != "break":
             print(f"--- Starting {AQUA}execution{WHITE}")
             counter = 0
-        while counter < len(rom):
+        while counter < len(bcomp.rom):
             #Execute the command
-            result = executeLine(counter)
+            result = bcomp.execute(counter)
             #Advance the clock
             counter += 1
             #IO
-            handleOutputDevices()
+            bcomp.handleOutputDevices()
             if result != "": break
 
         if result != "break": #  or counter >= len(rom) - 1
@@ -590,5 +584,4 @@ while user_in != "exit":
             result = ""
 
 #Close tkinter window
-devices['display']['window'].destroy()
 print(f"{WHITE}Bye!")
