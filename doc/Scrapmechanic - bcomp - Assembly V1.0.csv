@@ -1,0 +1,33 @@
+Binary representiation,,,,,,,,Index,Menmonic,Name,Argument,Description,Micro instructions
+,,,,,,,,0,NOP,No operation,-,The computer does nothing,-
+,,,,,,,,1,LDA,Load to A,The value,BUS to RA,RARG OE + RA IE
+,,,,,,,,2,LDB,Load to B,The value,BUS to RB,RARG OE + RB IE
+,,,,,,,,3,SWP,Swap,-,Swaps RA with RB,RA OE + RAC IE
+,,,,,,,,4,LAC,Load AC,-,Loads RAC to RA,RAC OE + RA IE
+,,,,,,,,5,ADD,Add,-,Adds the 2 numbers (RA + RB) and puts the result to RAC,ALU ADD + ALU C + RAC IE
+,,,,,,,,6,SUB,Subtract,-,Subtracts the 2 number (RA - RB) and puts the result to RAC,ALU SUB + ALU C + RAC IE
+,,,,,,,,7,ADR,Set address,The value,Sets the memory's address to the BUS,RARG OE + RADR IE
+,,,,,,,,8,ARA,Address from A,-,Sets the memory's address to RA,RA OE + RADR IE
+,,,,,,,,9,LDI,Load immediate,The value,Loads the BUS to the memory,RARG OE + MEM WRITE
+,,,,,,,,10,STR,Store,-,Saves RAC to the memory,RAC OE + MEM WRITE
+,,,,,,,,11,MOV,Move to A,-,Loads the memory's value to RA,MEM READ + RA IE
+,,,,,,,,12,CLK,Load clock,-,Loads the clock's current value to RA,CLK OE + RA IE
+,,,,,,,,13,JMP,Jump,Address,"Jumps to the given address, if the most signinfiacant bit is set, it will push to stack.",RARG OE + CLK IE
+,,,,,,,,14,JIC,Jump if carry,Address,"Jumps to address IF the carry flag is on, if the most signinfiacant bit is set, it will push to stack.",RARG OE + CLK IE
+,,,,,,,,15,JIN,Jump if negative,Address,"Jumps to address IF the negative flag is on, if the most signinfiacant bit is set, it will push to stack.",RARG OE + CLK IE
+,,,,,,,,16,JIO,Jump if null,Address,"Jumps to address IF the null flag is on, if the most signinfiacant bit is set, it will push to stack.",RARG OE + CLK IE
+,,,,,,,,17,OUT,Output,Port index,Outputs RA to the given port,RA OE +  PORT WRITE
+,,,,,,,,18,INP,Input,Port index,Loads the value from the given port to RA,PORT READ + RA IE
+,,,,,,,,19,,,,,
+,,,,,,,,20,,,,,
+,,,,,,,,21,,,,,
+,,,,,,,,22,,,,,
+,,,,,,,,23,,,,,
+,,,,,,,,24,,,,,
+,,,,,,,,25,,,,,
+,,,,,,,,26,,,,,
+,,,,,,,,27,,,,,
+,,,,,,,,28,,,,,
+,,,,,,,,29,,,,,
+,,,,,,,,30,,,,,
+,,,,,,,,31,HLT,Halt,-,"Stops the clock, and execution",-

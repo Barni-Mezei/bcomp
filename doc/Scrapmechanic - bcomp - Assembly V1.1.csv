@@ -1,0 +1,33 @@
+Binary representiation,,,,,,,,Index,Menmonic,Name,Argument,Description,Micro instructions
+,,,,,,,,0,NOP,No operation,-,The computer does nothing,-
+,,,,,,,,1,LDA,Load to A,The value,BUS to RA,RARG OE + RA IE
+,,,,,,,,2,LDB,Load to B,The value,BUS to RB,RARG OE + RB IE
+,,,,,,,,3,MCA,Move C to A,-,Copies RAC to RA,RAC OE + RA IE
+,,,,,,,,4,MAC,Move A to C,-,Copies RA to RAC,RA OE + RAC IE
+,,,,,,,,5,MAB,Move A to B,-,Copies RA to RB,RA OE + RB IE
+,,,,,,,,6,MBC,Move B to C,-,Copies RB to RAC,RB OE + RAC IE
+,,,,,,,,7,ADD,Add,-,Adds the 2 numbers (RA + RB) and puts the result to RAC,ALU ADD + ALU C + RAC IE
+,,,,,,,,8,SUB,Subtract,-,Subtracts the 2 number (RA - RB) and puts the result to RAC,ALU SUB + ALU C + RAC IE
+,,,,,,,,9,AND,Bitwise AND,-,ANDs RA and RB together and puts the result to RAC,ALU AND + ALU C + RAC IE
+,,,,,,,,10,BOR,Bitwise OR,-,ORs RA and RB together and puts the result to RAC,ALU OR + ALU C + RAC IE
+,,,,,,,,11,XOR,Bitwise XOR,-,XORs RA and RB together and puts the result to RAC,ALU XOR + ALU C + RAC IE
+,,,,,,,,12,NOT,Bitwise NOT,-,Negates RA and puts the result to RAC,ALU NOT + ALU C + RAC IE
+,,,,,,,,13,SHL,Shift left,-,Shifts RA left by 1 and puts the result to RAC,ALU S.LEFT + ALU C + RAC IE
+,,,,,,,,14,SHR,Shift right,-,Shifts RA right by 1 and puts the result to RAC,ALU S.RIGHT + ALU C + RAC IE
+,,,,,,,,15,ADR,Set address,The value,Sets the memory's address to the BUS,RARG OE + RADR IE
+,,,,,,,,16,ARA,Address from A,-,Sets the memory's address to RA,RA OE + RADR IE
+,,,,,,,,17,LDI,Load immediate,The value,Loads the BUS to the memory,RARG OE + MEM WRITE
+,,,,,,,,18,STR,Store,-,Saves RAC to the memory,RAC OE + MEM WRITE
+,,,,,,,,19,MOV,Move to A,-,Loads the memory's value to RA,MEM READ + RA IE
+,,,,,,,,20,CLK,Load clock,-,Loads the clock's current value to RA,CLK OE + RA IE
+,,,,,,,,21,JMP,Jump,Address,Jumps to the given address,RARG OE + CLK IE
+,,,,,,,,22,JSR,Jump to subroutine,Address,"Jumps to the given address, and pushes to stack",RARG OE + CLK IE
+,,,,,,,,23,JIC,Jump if carry,Address,Jumps to address IF the carry flag is on,RARG OE + CLK IE
+,,,,,,,,24,JIN,Jump if negative,Address,Jumps to address IF the negative flag is on,RARG OE + CLK IE
+,,,,,,,,25,JIO,Jump if null,Address,Jumps to address IF the null flag is on,RARG OE + CLK IE
+,,,,,,,,26,RTN,Return,-,Jumps back to the last value in the stack,STACK POP + STACK OE + CLK IE
+,,,,,,,,27,OUT,Output,Port index,Outputs RA to the given port,RA OE +  PORT WRITE
+,,,,,,,,28,INP,Input,Port index,Loads the value from the given port to RA,PORT READ + RA IE
+,,,,,,,,29,,,,,
+,,,,,,,,30,,,,,
+,,,,,,,,31,HLT,Halt,-,"Stops the clock, and execution",-
