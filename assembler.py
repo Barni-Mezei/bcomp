@@ -6,14 +6,14 @@ from lib import *
 arg_parser = argparse.ArgumentParser(
     exit_on_error = True,
     prog = "BCOMP Assembler",
-    description = "This program compiles your '.asm' files in to '.o' files, using the commands specified in commands.txt",
-    usage="To compile your code, you have to specify the path to the '.asm' file,\nand it will create a new '.o' file, with the same name as the source code next to itself.\n"
+    description = "This program assembles your '.asm' files in to '.o' files, using the commands specified in commands.txt",
+    usage="To assemble your code, you have to specify the path to the '.asm' file,\nand it will create a new '.o' file, with the same name as the source code next to itself.\n"
     "If you want to specify the output location of the '.o' file, you can use the -o parameter.\nIf you want to name your output file, you can use the -f parameter.",
 )
 
 arg_parser.add_argument('input_file', help="The path to your '.asm' file")
-arg_parser.add_argument('-o', '--output_path', help="The path to the dictionary, that will contain your compiled code")
-arg_parser.add_argument('-f', '--file_name', help="The name of your compiled file. Filetype will be ignored!")
+arg_parser.add_argument('-o', '--output-path', help="The path to the directory, that will contain your compiled code")
+arg_parser.add_argument('-f', '--file-name', help="The name of your compiled file. Filetype will be ignored!")
 
 #Parse command line arguments
 if len(sys.argv[1::]) == 0:
