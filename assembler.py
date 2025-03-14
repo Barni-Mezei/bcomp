@@ -67,8 +67,6 @@ try:
                 "index": i + 1,
                 "tokens": tokens
             })
-
-            continue
 except FileNotFoundError as e:
     print(f"{RED}File not found!{WHITE}")
     exit()

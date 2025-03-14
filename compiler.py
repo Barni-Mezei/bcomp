@@ -5,6 +5,7 @@ Assembly version: bcomp assembly V1.1
 import sys
 import os
 import argparse
+from enum import Enum
 from lib import *
 
 arg_parser = argparse.ArgumentParser(
@@ -37,34 +38,52 @@ except Exception as e:
     print(f"{RED}ERROR: {str(e).capitalize()}{WHITE}")
     exit()
 
+########################
+## Tokeniser function ##
+########################
+
+TOKEN_SEPARATOR = " "
+
+class TokenType(Enum):
+    UNKNOWN = -1
+    KEYWORD = 0
+    COMMENT = 1
+    FUNCTION = 2
+    EXPRESSION = 3
+    LITERAL = 4
+
+class Token:
+    type = TokenType.UNKNOWN
+    value = ""
+
+    def __init__(self, type : TokenType, value : str) -> None:
+        self.type = type
+        self.value = value
+
+def tokenise(code_string : str) -> list:
+    token_type = ""
+    token = ""
+    can_read = True
+    out = []
+
+    for index, char in enumerate(code_string):
+        if char == TOKEN_SEPARATOR:
+            out.append(token)
+            token = ""
+            continue
+
+        token += char
+
+    return out
+
+
 print(f"--- Tokenizing: {AQUA}{sys.argv[1]}{WHITE}")
 try:
     with open(sys.argv[1], "r", encoding="utf8") as f:
-        for i, line in enumerate(f):
-            line = line.strip().replace("\t", " ")
+        code_string = f.read()
 
-            if line == "" or line[0] == ";":
-                print(f"{RED}SKIPPING{WHITE}")
-                continue
+        tokenise(code_string)
 
-            tokens = line.split(" ")[0:2]
-            print(tokens)
-
-            #if len(tokens) > 1 and not tokens[0][0] in [":", "$"] and tokens[1] == "" and commands[tokens[0].lower()][1] == 1:
-            #    print(f"{RED}ERROR: Not enough tokens!{WHITE}")
-            #    exit()
-
-            if len(tokens) == 1: tokens.append("0")
-            if tokens[1] == "" or tokens[1] == ";": tokens[1] = "0"
-
-            print(f"{GRAY}{i:>03d} {WHITE}{line}")
-
-            read_lines.append({
-                "index": i + 1,
-                "tokens": tokens
-            })
-
-            continue
 except FileNotFoundError as e:
     print(f"{RED}File not found!{WHITE}")
     exit()
