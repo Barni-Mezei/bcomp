@@ -42,7 +42,8 @@ except Exception as e:
 ## Tokeniser function ##
 ########################
 
-TOKEN_SEPARATOR = " "
+TOKEN_SEPARATORS = [' ', '(', ')']
+STRING_BOUNDARY = ['"', "'", '`']
 
 class TokenType(Enum):
     UNKNOWN = -1
@@ -50,7 +51,8 @@ class TokenType(Enum):
     COMMENT = 1
     FUNCTION = 2
     EXPRESSION = 3
-    LITERAL = 4
+    STRING_LITERAL = 4
+    NUMBER_LITERAL = 5
 
 class Token:
     type = TokenType.UNKNOWN
@@ -60,17 +62,68 @@ class Token:
         self.type = type
         self.value = value
 
+    def __str__(self):
+        return f"{AQUA}({self.type}) {WHITE}{repr(self.value)} | "
+
+
 def tokenise(code_string : str) -> list:
-    token_type = ""
+    token_type = TokenType.UNKNOWN
     token = ""
-    can_read = True
+
+    comment_flag = False
+    was_separator = False
+    escaped = False
+
     out = []
 
+    line = []
+
     for index, char in enumerate(code_string):
-        if char == TOKEN_SEPARATOR:
-            out.append(token)
-            token = ""
+        was_separator = False
+
+        if escaped:
+            token += char
             continue
+
+        if char == "\\":
+            escaped = True
+
+        if char in TOKEN_SEPARATORS or char == "\n":
+            token_obj = Token(token_type, token)
+            line.append(token_obj)
+            token = ""
+            was_separator = True
+
+
+            if char == "\n":
+                token_type = TokenType.UNKNOWN
+                out.append(line)
+                line = []
+
+            continue
+
+        if token_type == TokenType.STRING_LITERAL:
+            if char in STRING_BOUNDARY:
+                token_type = TokenType.UNKNOWN
+            else:
+                token += char
+                continue
+
+
+        if token_type == TokenType.UNKNOWN and char == '"':
+            token_type = TokenType.STRING_LITERAL
+            continue
+
+        if comment_flag:
+            if char == '-':
+                comment_flag = False
+                token_type = TokenType.COMMENT
+                continue
+            else:
+                comment_flag = False
+
+        if char == '-' and was_separator:
+            comment_flag = True
 
         token += char
 
@@ -78,15 +131,25 @@ def tokenise(code_string : str) -> list:
 
 
 print(f"--- Tokenizing: {AQUA}{sys.argv[1]}{WHITE}")
+
+tokens = []
+
 try:
     with open(sys.argv[1], "r", encoding="utf8") as f:
         code_string = f.read()
 
-        tokenise(code_string)
+        tokens = tokenise(code_string)
 
 except FileNotFoundError as e:
     print(f"{RED}File not found!{WHITE}")
     exit()
+
+
+for line in tokens:
+    for token in line:
+        print(token, end="")
+    print()
+
 
 print(f"--- Compiling: {AQUA}{sys.argv[1]}{WHITE}")
 
