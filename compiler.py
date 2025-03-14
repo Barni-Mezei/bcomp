@@ -70,7 +70,7 @@ def tokenise(code_string : str) -> list:
     token_type = TokenType.UNKNOWN
     token = ""
 
-    comment_flag = False
+    multiline_comment_flag = False
     was_separator = False
     escaped = False
     end_token = False
@@ -80,7 +80,13 @@ def tokenise(code_string : str) -> list:
     line = []
 
     for index, char in enumerate(code_string):
+        print(multiline_comment_flag, token)
+
         was_separator = False
+        next_char = ""
+        if index < len(code_string) - 1: next_char = code_string[index + 1]
+        prev_char = ""
+        if index > 1: prev_char = code_string[index - 1]
 
         if escaped:
             token += char
@@ -96,6 +102,18 @@ def tokenise(code_string : str) -> list:
                 token += char
                 continue
 
+        if token_type == TokenType.COMMENT:
+            if multiline_comment_flag and char == ']':
+                end_token = True
+
+            token += char
+
+            if token == "--[[":
+                multiline_comment_flag = True
+                print("Multiline comment")
+
+            if char != "\n" or multiline_comment_flag: continue
+
         if char in TOKEN_SEPARATORS or char == "\n" or end_token:
             if len(token) > 0:
                 token_obj = Token(token_type, token)
@@ -105,6 +123,7 @@ def tokenise(code_string : str) -> list:
 
             if end_token:
                 token_type = TokenType.UNKNOWN
+                multiline_comment_flag = False
             end_token = False
 
             if char == "\n":
@@ -118,16 +137,9 @@ def tokenise(code_string : str) -> list:
             token_type = TokenType.STRING_LITERAL
             continue
 
-        if comment_flag:
-            if char == '-':
-                comment_flag = False
-                token_type = TokenType.COMMENT
-                continue
-            else:
-                comment_flag = False
-
-        if char == '-' and was_separator:
-            comment_flag = True
+        if token == "--":
+            token_type = TokenType.COMMENT
+            print("Comment")
 
         token += char
 
