@@ -9,7 +9,7 @@ https://www.lua.org/manual/5.3/manual.html
 Made by: Barni - 2025.03.14
 
 [x] Normalisation    - convert to utf8
-[ ] Pre-tokenisation - split by whitespaces / punctuation
+[x] Pre-tokenisation - split by whitespaces / punctuation + determine string literals
 [ ] Model            - Create actual token list
 [ ] Postprocessor    - add additional tokens, correct missing tokens
 [ ] Pre-compiler     - Generate assembly code, with placeholders
@@ -88,16 +88,16 @@ class Token:
 def normalise(code_string) -> str:
     return code_string
 
-################
-## Normaliser ##
-################
+###################
+## Pre-tokeniser ##
+###################
 
 def pre_tokenise(code_string : str) -> list:
     current_token = ""
     escaped = False
 
-    pre_tokenised = []
     out = []
+    tmp = []
 
     #Tokenise code
     for index, char in enumerate(code_string):
@@ -111,30 +111,39 @@ def pre_tokenise(code_string : str) -> list:
             continue
 
         if char in TOKEN_SEPARATORS:
-            pre_tokenised.append({"token": current_token, "separator": char})
+            out.append({"token": current_token, "separator": char})
             current_token = ""
             continue
 
         current_token += char
-
 
     #Remove unnecessary spaces
     current_string_boundary = ""
     current_string = ""
     had_new_line = False
 
-    for index, token_data in enumerate(pre_tokenised):
-        if len(token_data["token"]) > 0 and token_data["token"][-1] == current_string_boundary:
-            current_string_boundary = ""
-            current_string += token_data["token"][:-1:]
-            out.append({"token": current_string, "separator": token_data["separator"]})
-            continue
-
+    for index, token_data in enumerate(out):
+        #String literal started
         if len(token_data["token"]) > 0 and current_string_boundary == "" and token_data["token"][0] in STRING_BOUNDARY:
             current_string_boundary = token_data["token"][0]
-            current_string = token_data["token"][1::] + token_data["separator"]
+            current_string = token_data["token"] + token_data["separator"]
+
+            #Check if string without a separator
+            if token_data["token"][-1] == current_string_boundary:
+                current_string_boundary = ""
+                current_string = current_string[:-1:]
+                tmp.append({"token": current_string, "separator": token_data["separator"]})
+
             continue
 
+        #String literal ended
+        if len(token_data["token"]) > 0 and token_data["token"][-1] == current_string_boundary:
+            current_string_boundary = ""
+            current_string += token_data["token"]
+            tmp.append({"token": current_string, "separator": token_data["separator"]})
+            continue
+
+        #Inside a string literal
         if current_string_boundary != "":
             current_string += token_data["token"] + token_data["separator"]
             continue
@@ -147,95 +156,60 @@ def pre_tokenise(code_string : str) -> list:
         if len(token_data["token"]) == 0 and token_data["separator"] == "\n":
             if not had_new_line:
                 had_new_line = True
-                out.append(token_data)
+                tmp.append(token_data)
             continue
         else:
             had_new_line = False
 
 
-        out.append(token_data)
+        tmp.append(token_data)
+
+    out = []
+
+    #Flatten out array
+    for index, token_data in enumerate(tmp):
+        token = token_data["token"]
+        separator = token_data["separator"]
+
+        if len(token) == 0:
+            out.append(separator)
+        elif separator == " ":
+            out.append(token)
+        else:
+            out.append(token)
+            out.append(separator)
 
     return out
 
-def tokenise(code_string : str) -> list:
+###############
+## The model ##
+###############
+
+def model(code_pre_tokens : list) -> list:
     token_type = TokenType.UNKNOWN
     token = ""
 
     multiline_comment_flag = False
-    was_separator = False
-    escaped = False
-    end_token = False
 
     out = []
-
     line = []
 
-    for index, char in enumerate(code_string):
-        print(multiline_comment_flag, token)
+    for index, token in enumerate(code_pre_tokens):
 
-        was_separator = False
-        next_char = ""
-        if index < len(code_string) - 1: next_char = code_string[index + 1]
-        prev_char = ""
-        if index > 1: prev_char = code_string[index - 1]
-
-        if escaped:
-            token += char
+        if token == "\n":
+            if len(line) != 0: out.append(line)
+            line = []
             continue
 
-        if char == "\\":
-            escaped = True
+        line.append(token)
 
-        if token_type == TokenType.STRING_LITERAL:
-            if char == '"':
-                end_token = True
-            else:
-                token += char
-                continue
-
-        if token_type == TokenType.COMMENT:
-            if multiline_comment_flag and char == ']':
-                end_token = True
-
-            token += char
-
-            if token == "--[[":
-                multiline_comment_flag = True
-                print("Multiline comment")
-
-            if char != "\n" or multiline_comment_flag: continue
-
-        if char in TOKEN_SEPARATORS or char == "\n" or end_token:
-            if len(token) > 0:
-                token_obj = Token(token_type, token)
-                line.append(token_obj)
-            token = ""
-            was_separator = True
-
-            if end_token:
-                token_type = TokenType.UNKNOWN
-                multiline_comment_flag = False
-            end_token = False
-
-            if char == "\n":
-                token_type = TokenType.UNKNOWN
-                out.append(line)
-                line = []
-
-            continue
-
-        if token_type == TokenType.UNKNOWN and char == '"':
-            token_type = TokenType.STRING_LITERAL
-            continue
-
-        if token == "--":
-            token_type = TokenType.COMMENT
-            print("Comment")
-
-        token += char
+    if len(line) > 0: out.append(line)
 
     return out
 
+########################################
+## Tokenising (preparing compilation) ##
+########################################
 
 print(f"--- Tokenizing: {AQUA}{sys.argv[1]}{WHITE}")
 
@@ -247,24 +221,26 @@ try:
 
         normalised_code = normalise(code_string)
         pre_tokens = pre_tokenise(normalised_code)
-        tokens = pre_tokens
+        tokens = model(pre_tokens)
 
 except FileNotFoundError as e:
     print(f"{RED}File not found!{WHITE}")
     exit()
 
+#for token in tokens:
+#    print(f"{token["token"]}{AQUA}{repr(token["separator"])}{WHITE}")
 
-for token in tokens:
-    print(f"{token["token"]}{AQUA}{repr(token["separator"])}{WHITE}")
+for line in tokens:
+    #for token in line:
+    #    print(token)
+    print(line)
 
-#for line in tokens:
-#    for token in line:
-#        print(token)
-#    print()
 
+###############
+## Compiling ##
+###############
 
 print(f"--- Compiling: {AQUA}{sys.argv[1]}{WHITE}")
-
 
 #Writing to file
 def path_leaf(path):
