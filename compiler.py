@@ -1,5 +1,19 @@
 """
 Assembly version: bcomp assembly V1.1
+
+Resources:
+https://huggingface.co/learn/nlp-course/chapter6/8
+https://www.lua.org/manual/5.3/manual.html
+
+
+Made by: Barni - 2025.03.14
+
+[x] Normalisation    - convert to utf8
+[ ] Pre-tokenisation - split by whitespaces / punctuation
+[ ] Model            - Create actual token list
+[ ] Postprocessor    - add additional tokens, correct missing tokens
+[ ] Pre-compiler     - Generate assembly code, with placeholders
+[ ] Compiler         - complete assembly code
 """
 
 import sys
@@ -38,11 +52,12 @@ except Exception as e:
     print(f"{RED}ERROR: {str(e).capitalize()}{WHITE}")
     exit()
 
-########################
-## Tokeniser function ##
-########################
+###############
+## Constants ##
+###############
 
-TOKEN_SEPARATORS = [' ', '(', ')']
+TOKEN_SEPARATORS = ['\n', ' ', ',', '(', ')', '{', '}', '[', ']']
+INCLUDED_SEPARATORS = ['(', ')', '{', '}', '[', ']']
 STRING_BOUNDARY = ['"', "'", '`']
 
 class TokenType(Enum):
@@ -65,6 +80,82 @@ class Token:
     def __str__(self):
         return f"{AQUA}({self.type}) {WHITE}{repr(self.value)}"
 
+
+################
+## Normaliser ##
+################
+
+def normalise(code_string) -> str:
+    return code_string
+
+################
+## Normaliser ##
+################
+
+def pre_tokenise(code_string : str) -> list:
+    current_token = ""
+    escaped = False
+
+    pre_tokenised = []
+    out = []
+
+    #Tokenise code
+    for index, char in enumerate(code_string):
+        if escaped:
+            current_token += char
+            escaped = False
+            continue
+
+        if char == "\\":
+            escaped = True
+            continue
+
+        if char in TOKEN_SEPARATORS:
+            pre_tokenised.append({"token": current_token, "separator": char})
+            current_token = ""
+            continue
+
+        current_token += char
+
+
+    #Remove unnecessary spaces
+    current_string_boundary = ""
+    current_string = ""
+    had_new_line = False
+
+    for index, token_data in enumerate(pre_tokenised):
+        if len(token_data["token"]) > 0 and token_data["token"][-1] == current_string_boundary:
+            current_string_boundary = ""
+            current_string += token_data["token"][:-1:]
+            out.append({"token": current_string, "separator": token_data["separator"]})
+            continue
+
+        if len(token_data["token"]) > 0 and current_string_boundary == "" and token_data["token"][0] in STRING_BOUNDARY:
+            current_string_boundary = token_data["token"][0]
+            current_string = token_data["token"][1::] + token_data["separator"]
+            continue
+
+        if current_string_boundary != "":
+            current_string += token_data["token"] + token_data["separator"]
+            continue
+
+        #Exclude spaces
+        if len(token_data["token"]) == 0 and token_data["separator"] == " ":
+            continue
+
+        #Add only 1 new line if multiple trailing ones found
+        if len(token_data["token"]) == 0 and token_data["separator"] == "\n":
+            if not had_new_line:
+                had_new_line = True
+                out.append(token_data)
+            continue
+        else:
+            had_new_line = False
+
+
+        out.append(token_data)
+
+    return out
 
 def tokenise(code_string : str) -> list:
     token_type = TokenType.UNKNOWN
@@ -154,17 +245,22 @@ try:
     with open(sys.argv[1], "r", encoding="utf8") as f:
         code_string = f.read()
 
-        tokens = tokenise(code_string)
+        normalised_code = normalise(code_string)
+        pre_tokens = pre_tokenise(normalised_code)
+        tokens = pre_tokens
 
 except FileNotFoundError as e:
     print(f"{RED}File not found!{WHITE}")
     exit()
 
 
-for line in tokens:
-    for token in line:
-        print(token)
-    print()
+for token in tokens:
+    print(f"{token["token"]}{AQUA}{repr(token["separator"])}{WHITE}")
+
+#for line in tokens:
+#    for token in line:
+#        print(token)
+#    print()
 
 
 print(f"--- Compiling: {AQUA}{sys.argv[1]}{WHITE}")

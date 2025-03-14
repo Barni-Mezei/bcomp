@@ -1,4 +1,5 @@
-print("test, asdasd asd") --Comment here!
+print("test, asdasd\
+asd") --Comment \here!
 
 --[[ line 0
     Multiline comment
@@ -6,7 +7,7 @@ print("test, asdasd asd") --Comment here!
     line 3
 ]]
 
-print("test, asdasd asd --")
+print("string here")
 
 function a()
     print("Hello!")
