@@ -1,4 +1,4 @@
-print("test, asdasd asd --") --Comment here!
+print("test, asdasd asd") --Comment here!
 
 --[[ line 0
     Multiline comment

@@ -63,7 +63,7 @@ class Token:
         self.value = value
 
     def __str__(self):
-        return f"{AQUA}({self.type}) {WHITE}{repr(self.value)} | "
+        return f"{AQUA}({self.type}) {WHITE}{repr(self.value)}"
 
 
 def tokenise(code_string : str) -> list:
@@ -73,6 +73,7 @@ def tokenise(code_string : str) -> list:
     comment_flag = False
     was_separator = False
     escaped = False
+    end_token = False
 
     out = []
 
@@ -88,12 +89,23 @@ def tokenise(code_string : str) -> list:
         if char == "\\":
             escaped = True
 
-        if char in TOKEN_SEPARATORS or char == "\n":
-            token_obj = Token(token_type, token)
-            line.append(token_obj)
+        if token_type == TokenType.STRING_LITERAL:
+            if char == '"':
+                end_token = True
+            else:
+                token += char
+                continue
+
+        if char in TOKEN_SEPARATORS or char == "\n" or end_token:
+            if len(token) > 0:
+                token_obj = Token(token_type, token)
+                line.append(token_obj)
             token = ""
             was_separator = True
 
+            if end_token:
+                token_type = TokenType.UNKNOWN
+            end_token = False
 
             if char == "\n":
                 token_type = TokenType.UNKNOWN
@@ -101,14 +113,6 @@ def tokenise(code_string : str) -> list:
                 line = []
 
             continue
-
-        if token_type == TokenType.STRING_LITERAL:
-            if char in STRING_BOUNDARY:
-                token_type = TokenType.UNKNOWN
-            else:
-                token += char
-                continue
-
 
         if token_type == TokenType.UNKNOWN and char == '"':
             token_type = TokenType.STRING_LITERAL
@@ -147,7 +151,7 @@ except FileNotFoundError as e:
 
 for line in tokens:
     for token in line:
-        print(token, end="")
+        print(token)
     print()
 
 
