@@ -99,8 +99,8 @@ def pre_tokenise(code_string : str) -> list:
     out = []
     tmp = []
 
-    #Tokenise code
-    for index, char in enumerate(code_string):
+    #Tokenise code (by the separators)
+    for char in code_string:
         if escaped:
             current_token += char
             escaped = False
@@ -117,12 +117,12 @@ def pre_tokenise(code_string : str) -> list:
 
         current_token += char
 
-    #Remove unnecessary spaces
+    #Remove unnecessary spaces, combine certain tokens into one
     current_string_boundary = ""
     current_string = ""
     had_new_line = False
 
-    for index, token_data in enumerate(out):
+    for token_data in out:
         #String literal started
         if len(token_data["token"]) > 0 and current_string_boundary == "" and token_data["token"][0] in STRING_BOUNDARY:
             current_string_boundary = token_data["token"][0]
@@ -161,13 +161,18 @@ def pre_tokenise(code_string : str) -> list:
         else:
             had_new_line = False
 
+        #Break up comment starts
+        if len(token_data["token"]) > 2 and token_data["token"][0] == "-" and token_data["token"][1] == "-":
+            tmp.append({"token": "--", "separator": " "})
+            tmp.append({"token": token_data["token"][2::], "separator": " " if token_data["separator"] != "\n" else token_data["separator"] })
+            continue
 
         tmp.append(token_data)
 
     out = []
 
     #Flatten out array
-    for index, token_data in enumerate(tmp):
+    for token_data in tmp:
         token = token_data["token"]
         separator = token_data["separator"]
 

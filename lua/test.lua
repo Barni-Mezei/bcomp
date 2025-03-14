@@ -2,6 +2,7 @@
 print("Hello!")
 
 print("test, asdasd\
+mutiline string!!!\
 asd") --Comment \here!
 
 --[[ line 0
