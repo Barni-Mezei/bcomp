@@ -14,6 +14,10 @@ Made by: Barni - 2025.03.14
 [ ] Postprocessor    - add additional tokens, correct missing tokens
 [ ] Pre-compiler     - Generate assembly code, with placeholders
 [ ] Compiler         - complete assembly code
+
+TODO:
+- Group expressions, for later evaluation
+
 """
 
 import sys
@@ -56,8 +60,8 @@ except Exception as e:
 ## Constants ##
 ###############
 
-TOKEN_SEPARATORS = ['\n', ' ', ',', '(', ')', '{', '}', '[', ']']
-INCLUDED_SEPARATORS = ['(', ')', '{', '}', '[', ']']
+TOKEN_SEPARATORS = ['\n', ' ', ',', ':', '.', '+', '-', '*', '/', '%', '^', '&', '|', '~', '<', '>', '(', ')', '{', '}', '[', ']']
+OPERATORS = ['+', '-', '*', '/', '%', '^', '&', '|', '~', '<', '>']
 STRING_BOUNDARY = ['"', "'", '`']
 
 class TokenType(Enum):
@@ -99,6 +103,8 @@ def pre_tokenise(code_string : str) -> list:
     out = []
     tmp = []
 
+    current_string_boundary = ""
+
     #Tokenise code (by the separators)
     for char in code_string:
         if escaped:
@@ -110,6 +116,25 @@ def pre_tokenise(code_string : str) -> list:
             escaped = True
             continue
 
+        #String ends
+        if current_string_boundary != "" and (char == current_string_boundary or char == "\n"):
+            current_string_boundary = ""
+            current_token += char
+            out.append({"token": current_token, "separator": " "})
+            current_token = ""
+            continue
+
+        #String starts
+        if current_string_boundary == "" and char in STRING_BOUNDARY:
+            current_string_boundary = char
+            current_token += char
+            continue
+
+        #Inside a string
+        if current_string_boundary != "":
+            current_token += char
+            continue
+
         if char in TOKEN_SEPARATORS:
             out.append({"token": current_token, "separator": char})
             current_token = ""
@@ -117,37 +142,12 @@ def pre_tokenise(code_string : str) -> list:
 
         current_token += char
 
-    #Remove unnecessary spaces, combine certain tokens into one
-    current_string_boundary = ""
-    current_string = ""
+    if len(current_token) > 0: out.append({"token": current_token, "separator": "\n"})
+
+    #Remove unnecessary spaces + combine certain tokens into one
     had_new_line = False
 
     for token_data in out:
-        #String literal started
-        if len(token_data["token"]) > 0 and current_string_boundary == "" and token_data["token"][0] in STRING_BOUNDARY:
-            current_string_boundary = token_data["token"][0]
-            current_string = token_data["token"] + token_data["separator"]
-
-            #Check if string without a separator
-            if token_data["token"][-1] == current_string_boundary:
-                current_string_boundary = ""
-                current_string = current_string[:-1:]
-                tmp.append({"token": current_string, "separator": token_data["separator"]})
-
-            continue
-
-        #String literal ended
-        if len(token_data["token"]) > 0 and token_data["token"][-1] == current_string_boundary:
-            current_string_boundary = ""
-            current_string += token_data["token"]
-            tmp.append({"token": current_string, "separator": token_data["separator"]})
-            continue
-
-        #Inside a string literal
-        if current_string_boundary != "":
-            current_string += token_data["token"] + token_data["separator"]
-            continue
-
         #Exclude spaces
         if len(token_data["token"]) == 0 and token_data["separator"] == " ":
             continue
@@ -160,12 +160,6 @@ def pre_tokenise(code_string : str) -> list:
             continue
         else:
             had_new_line = False
-
-        #Break up comment starts
-        if len(token_data["token"]) > 2 and token_data["token"][0] == "-" and token_data["token"][1] == "-":
-            tmp.append({"token": "--", "separator": " "})
-            tmp.append({"token": token_data["token"][2::], "separator": " " if token_data["separator"] != "\n" else token_data["separator"] })
-            continue
 
         tmp.append(token_data)
 
@@ -236,9 +230,9 @@ except FileNotFoundError as e:
 #    print(f"{token["token"]}{AQUA}{repr(token["separator"])}{WHITE}")
 
 for line in tokens:
-    #for token in line:
-    #    print(token)
-    print(line)
+    for token in line:
+        print(token, end=" ")
+    print("\n")
 
 
 ###############

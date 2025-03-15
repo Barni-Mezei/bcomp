@@ -230,7 +230,7 @@ function update()
 
     clearMatrix(" ")
 
-    local colors = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'."
+    local colors = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXz cvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'."
     --local colors = "@#0|-."
     --local colors = "*-"
 

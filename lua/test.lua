@@ -1,20 +1,12 @@
--- Single line print
-print("Hello!")
+print("Multiline string\
+is here")
 
-print("test, asdasd\
-mutiline string!!!\
-asd") --Comment \here!
+"a"
 
---[[ line 0
-    Multiline comment
+"asd"
 
-    line 3
-]] print("text_after_comment")
+""
 
-print    ("string here")
+"asdasd++"+"123"
 
-function a()
-    print("Hello!")
-end
-
-end
+local colors = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"\^`'."
