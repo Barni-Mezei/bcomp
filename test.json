@@ -1,0 +1,114 @@
+[
+    {
+        "type": "operator",
+        "value": "=",
+        "left": [
+            {
+                "type": "name",
+                "value": "a"
+            }
+        ],
+
+        "right": [
+            {
+                "type": "number_literal",
+                "value": "5"
+            }
+        ]
+    },
+
+    {
+        "type": "operator",
+        "value": "=",
+        "left": [
+            {
+                "type": "name",
+                "value": "b"
+            }
+        ],
+
+        "right": [
+            {
+                "type": "number_literal",
+                "value": "6"
+            }
+        ]
+    },
+
+    {
+        "type": "name",
+        "value": "print",
+        "arguments": [
+            {
+                "type": "name",
+                "value": "a"
+            }
+        ]
+    },
+
+    {
+        "type": "name",
+        "value": "print",
+        "arguments": [
+            {
+                "type": "name",
+                "value": "b"
+            }
+        ]
+    },
+
+    {
+        "type": "operator",
+        "value": "=",
+        "left": [
+            {
+                "type": "name",
+                "value": "c"
+            }
+        ],
+
+        "right": [
+            {
+                "type": "operator",
+                "value": "+",
+                "left": [
+                    {
+                        "type": "name",
+                        "value": "a"
+                    }
+                ],
+
+                "right": [
+                    {
+                        "type": "name",
+                        "value": "b"
+                    }
+                ]
+            }
+        ]
+    },
+
+    {
+        "type": "name",
+        "value": "print",
+        "arguments": [
+            {
+                "type": "operator",
+                "value": "..",
+                "left": [
+                    {
+                        "type": "string_literal",
+                        "value": "\"C:\""
+                    }
+                ],
+
+                "right": [
+                    {
+                        "type": "name",
+                        "value": "c"
+                    }
+                ]
+            }
+        ]
+    }
+]

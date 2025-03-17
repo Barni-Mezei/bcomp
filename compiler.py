@@ -24,6 +24,8 @@ import sys
 import os
 import argparse
 from enum import Enum
+import pprint
+import re
 from lib import *
 
 arg_parser = argparse.ArgumentParser(
@@ -60,18 +62,20 @@ except Exception as e:
 ## Constants ##
 ###############
 
-TOKEN_SEPARATORS = ['\n', ' ', ',', ':', '.', '+', '-', '*', '/', '%', '^', '&', '|', '~', '<', '>', '(', ')', '{', '}', '[', ']']
-OPERATORS = ['+', '-', '*', '/', '%', '^', '&', '|', '~', '<', '>']
+TOKEN_SEPARATORS = ['\n', ' ', ',', ':', '.', '(', ')', '{', '}', '[', ']']
+OPERATORS = ['=', '+', '-', '*', '/', '%', '^', '&', '|', '~', '<', '>']
+BLOCK_BOUNDARY = ['\n', 'end']
 STRING_BOUNDARY = ['"', "'", '`']
 
 class TokenType(Enum):
     UNKNOWN = -1
     KEYWORD = 0
     COMMENT = 1
-    FUNCTION = 2
-    EXPRESSION = 3
-    STRING_LITERAL = 4
-    NUMBER_LITERAL = 5
+    IDENTIFIER = 2
+    TABLE = 3
+    OPERATOR = 4
+    STRING_LITERAL = 5
+    NUMBER_LITERAL = 6
 
 class Token:
     type = TokenType.UNKNOWN
@@ -135,7 +139,7 @@ def pre_tokenise(code_string : str) -> list:
             current_token += char
             continue
 
-        if char in TOKEN_SEPARATORS:
+        if char in TOKEN_SEPARATORS or char in OPERATORS:
             out.append({"token": current_token, "separator": char})
             current_token = ""
             continue
@@ -184,26 +188,61 @@ def pre_tokenise(code_string : str) -> list:
 ## The model ##
 ###############
 
-def model(code_pre_tokens : list) -> list:
-    token_type = TokenType.UNKNOWN
-    token = ""
+indent_level = -1
 
-    multiline_comment_flag = False
+def getTokenType(token : str) -> TokenType:
+    if re.search("^\".*\"$", token): return TokenType.STRING_LITERAL
+    if re.search("^[0-9_]*\\.?[0-9_]*$", token): return TokenType.NUMBER_LITERAL
+    if re.search("^[^[0-9]][^ ]+$", token): return TokenType.IDENTIFIER
+
+    return TokenType.UNKNOWN
+
+def model(code_pre_tokens : list) -> list:
+    global indent_level
+
+    indent_level += 1
+    print(f"{indent_level * "\t"}Model:", code_pre_tokens)
 
     out = []
-    line = []
+    last_token_index = 0
+    line = {}
+
+    is_inside_operator = False
 
     for index, token in enumerate(code_pre_tokens):
+        if not is_inside_operator:
+            if token in OPERATORS:
+                line = {}
+                line["left"] = model(code_pre_tokens[last_token_index:index])
+                line["type"] = TokenType.OPERATOR
+                line["value"] = token
+                last_token_index = index
+                is_inside_operator = True
+                continue
 
-        if token == "\n":
-            if len(line) != 0: out.append(line)
-            line = []
-            continue
+            last_token_index = index
 
-        line.append(token)
+        if token in BLOCK_BOUNDARY or index == len(code_pre_tokens)-1:
+            print((indent_level * "\t") + "End" if index == len(code_pre_tokens)-1 else "Boundary")
+            if is_inside_operator:
+                line["right"] = model(code_pre_tokens[last_token_index+1:index])
 
-    if len(line) > 0: out.append(line)
+                is_inside_operator = False
 
+                out.append(line)
+            else:
+                for t in code_pre_tokens[last_token_index:index]:
+                    out.append({"type": getTokenType(t), "value": t})
+
+    print((indent_level * "\t") + str(last_token_index))
+
+    if last_token_index == 0:
+        for t in code_pre_tokens:
+            out.append({"type": getTokenType(t), "value": t})
+
+    print(f"{indent_level * "\t"}Returned:", out)
+
+    indent_level -= 1
     return out
 
 ########################################
@@ -226,13 +265,22 @@ except FileNotFoundError as e:
     print(f"{RED}File not found!{WHITE}")
     exit()
 
-#for token in tokens:
-#    print(f"{token["token"]}{AQUA}{repr(token["separator"])}{WHITE}")
+print()
+print()
 
-for line in tokens:
-    for token in line:
-        print(token, end=" ")
-    print("\n")
+pp = pprint.PrettyPrinter(width=41, compact=True)
+pp.pprint(tokens)
+
+#for token in tokens:
+#    if token["type"] == TokenType.OPERATOR:
+#        for token["left"]
+#        print(f"{AQUA}{token['value']} {GRAY}{token['type'].name}")
+#    print()
+
+#for line in tokens:
+#    for token in line:
+#        print(token, end=" ")
+#    print("\n")
 
 
 ###############
