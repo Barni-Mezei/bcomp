@@ -43,7 +43,7 @@ arg_parser.add_argument('-f', '--file-name', help="The name of your compiled fil
 arg_parser.add_argument('-w', '--warn', help="Disables all warning messages")
 arg_parser.add_argument('-Wall', '--warn-all', help="Enables the extended warnining messages")
 
-#Parse command line arguments
+# Parse command line arguments
 if len(sys.argv[1::]) == 0:
     print(f"{RED}No input file given!{WHITE}")
     exit()
@@ -109,7 +109,7 @@ def pre_tokenise(code_string : str) -> list:
 
     current_string_boundary = ""
 
-    #Tokenise code (by the separators)
+    # Tokenise code (by the separators)
     for char in code_string:
         if escaped:
             current_token += char
@@ -120,7 +120,7 @@ def pre_tokenise(code_string : str) -> list:
             escaped = True
             continue
 
-        #String ends
+        # String ends
         if current_string_boundary != "" and (char == current_string_boundary or char == "\n"):
             current_string_boundary = ""
             current_token += char
@@ -128,13 +128,13 @@ def pre_tokenise(code_string : str) -> list:
             current_token = ""
             continue
 
-        #String starts
+        # String starts
         if current_string_boundary == "" and char in STRING_BOUNDARY:
             current_string_boundary = char
             current_token += char
             continue
 
-        #Inside a string
+        # Inside a string
         if current_string_boundary != "":
             current_token += char
             continue
@@ -148,15 +148,15 @@ def pre_tokenise(code_string : str) -> list:
 
     if len(current_token) > 0: out.append({"token": current_token, "separator": "\n"})
 
-    #Remove unnecessary spaces + combine certain tokens into one
+    # Remove unnecessary spaces + combine certain tokens into one
     had_new_line = False
 
     for token_data in out:
-        #Exclude spaces
+        # Exclude spaces
         if len(token_data["token"]) == 0 and token_data["separator"] == " ":
             continue
 
-        #Add only 1 new line if multiple trailing ones found
+        # Add only 1 new line if multiple trailing ones found
         if len(token_data["token"]) == 0 and token_data["separator"] == "\n":
             if not had_new_line:
                 had_new_line = True
@@ -169,7 +169,7 @@ def pre_tokenise(code_string : str) -> list:
 
     out = []
 
-    #Flatten out array
+    # Flatten out array
     for token_data in tmp:
         token = token_data["token"]
         separator = token_data["separator"]
@@ -181,6 +181,60 @@ def pre_tokenise(code_string : str) -> list:
         else:
             out.append(token)
             out.append(separator)
+
+    tmp = out
+    out = []
+
+    # Multi token patterns, that needs to be combined
+    patterns = ['--', '[[', ']]', '<<', '>>', '//', '==', '~=', '<=', '>=', '...']
+
+    index = 0
+    while index < len(tmp):
+        token = tmp[index]
+        index += 1
+
+        # End of line separator
+        if token == "\n":
+            out.append("\tEOL")
+            continue
+
+        # Find and replace patterns
+        pattern_found = False
+        for pattern in patterns:
+            result = False
+            for offset, char in enumerate(pattern):
+                if index-1 + offset < len(tmp) and tmp[index-1 + offset] == char:
+                    result = True
+                else:
+                    result = False
+                    break
+
+            if result:
+                out.append(pattern)
+                index += len(pattern) - 1
+                pattern_found = True
+                break
+
+        # Exit if a pattern is found
+        if pattern_found: continue
+
+        out.append(token)
+
+    # End of file separator
+    out.append("\tEOL")
+    out.append("\tEOF")
+
+    # print out constructed tokens, nicely
+    for token in out:
+        if token == "\tEOL":
+            print(f"{AQUA}|{WHITE}")
+            continue
+        
+        if token == "\tEOF":
+            print(f"{RED}End of file{WHITE}")
+            continue
+
+        print(token, end=" ")
 
     return out
 
@@ -202,6 +256,9 @@ def model(code_pre_tokens : list) -> list:
 
     indent_level += 1
     print(f"{indent_level * "\t"}Model:", code_pre_tokens)
+
+    if len(code_pre_tokens) == 1:
+        return [{"type": getTokenType(code_pre_tokens[0]), "value": code_pre_tokens[0]}]
 
     out = []
     last_token_index = 0
