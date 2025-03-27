@@ -1,0 +1,78 @@
+:root {
+    --color-background: #dddddd;
+    --color-ui-light: #aaaaaa;
+    --color-ui-gray: #888888;
+    --color-ui-strong: #666666;
+    --color-black: #222222;
+    --color-blue: #00bbff;
+    --color-red: #ff6600;
+    --color-green: #bbff00;
+
+    --address-divisons: 120;
+}
+
+* {
+    font-family: 'Trebuchet MS', sans-serif;
+    font-size: 20px;
+    color: var(--color-black);
+}
+
+body {
+    background-color: var(--color-background);
+}
+
+.address-line {
+    display: grid;
+
+    grid-template-rows: repeat(var(--address-divisons), 1fr);
+    row-gap: 100px;
+
+    margin: 0px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 0px;
+
+    width: 0px;
+
+    border-radius: 5px;
+    border: 2.5px solid var(--color-ui-light);
+}
+
+.address-line .address {
+    display: block;
+
+    width: 5em;
+    height: 1em;
+
+    margin: 5px;
+    padding: 0px;
+
+    transform: translateX(-100%);
+
+    font-family: monospace;
+    line-height: 1em;
+
+    background-color: var(--color-background);
+    color: var(--color-ui-light);
+
+    text-align: right;
+
+    z-index: 1;
+}
+
+.address-line .address::after {
+    content: "";
+    display: block;
+
+    background-color: var(--color-ui-light);
+
+    width: 3px;
+    height: 100%;
+
+    margin-left: auto;
+
+    transform: translateX(150%) translateY(-100%);
+
+    border-top-right-radius: 100%;
+    border-bottom-right-radius: 100%;
+}
