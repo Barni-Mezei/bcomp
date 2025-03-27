@@ -4,10 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="style.css">
+    <!-- Font awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <title>BCOMP - RAM demo</title>
 </head>
 <body>
-    <div id="address_line" class="address-line"></div>
+    <div class="top-menu"></div>
+    <div class="side-menu close"></div>
+    <div class="main">
+        <div id="address_line" class="address-line">
+            <button id="address_up"><i class="fa-solid fa-caret-up"></i></button>
+            <button id="address_down"><i class="fa-solid fa-caret-down"></i></button>
+        </div>
+        <div id="data_view" class="data-view"></div>
+    </div>
     <script src="init.js"></script>
     <script src="lib.js"></script>
     <script src="main.js"></script>
