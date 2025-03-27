@@ -1,1 +1,3 @@
-hnd = 3 + 4
+a = 3
+
+print("asd")

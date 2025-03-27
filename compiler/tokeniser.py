@@ -1,5 +1,6 @@
 """
 Assembly version: bcomp assembly V1.1
+LUA version: 5.3
 
 Resources:
 https://huggingface.co/learn/nlp-course/chapter6/8
@@ -12,12 +13,6 @@ Made by: Barni - 2025.03.14
 [x] Pre-tokenisation - split by whitespaces / punctuation + determine string literals
 [ ] Model            - Create actual token list
 [ ] Postprocessor    - add additional tokens, correct missing tokens
-[ ] Pre-compiler     - Generate assembly code, with placeholders
-[ ] Compiler         - complete assembly code
-
-TODO:
-- Group expressions, for later evaluation
-
 """
 
 import sys
@@ -26,7 +21,7 @@ import argparse
 from enum import Enum
 import pprint
 import re
-from lib import *
+from lib.lib import *
 
 arg_parser = argparse.ArgumentParser(
     exit_on_error = True,
@@ -63,9 +58,12 @@ except Exception as e:
 ###############
 
 TOKEN_SEPARATORS = ['\n', ' ', ',', ':', '.', '(', ')', '{', '}', '[', ']']
-OPERATORS = ['=', '+', '-', '*', '/', '%', '^', '&', '|', '~', '<', '>']
+OPERATORS = ['=', '+', '-', '*', '/', '%', '^', '&', '|', '~', '<', '>',
+             '<=', '>=', '==', '<<', '>>', '//', '~=', '#', '::', '..']
 BLOCK_BOUNDARY = ['\n', 'end']
 STRING_BOUNDARY = ['"', "'", '`']
+KEYWORDS = ['and', 'break', 'do', 'else', 'elseif', 'end', 'false', 'for', 'function', 'goto', 'if', 'in',
+            'local', 'nil', 'not', 'or', 'repeat', 'return', 'then', 'true', 'until', 'while']
 
 class TokenType(Enum):
     UNKNOWN = -1
@@ -76,18 +74,56 @@ class TokenType(Enum):
     OPERATOR = 4
     STRING_LITERAL = 5
     NUMBER_LITERAL = 6
+    BOOL_LITERAL = 7
+    ELLIPSIS = 8
+    NIL = 9
+    EXPRESSION_START = 10 # (
+    EXPRESSION_END = 11 # )
+    SPECIAL = 99 # The control characters
 
 class Token:
     type = TokenType.UNKNOWN
     value = ""
 
-    def __init__(self, type : TokenType, value : str) -> None:
+    def __init__(self, type : TokenType = TokenType.UNKNOWN, value : str = "") -> None:
         self.type = type
         self.value = value
 
-    def __str__(self):
-        return f"{AQUA}({self.type}) {WHITE}{repr(self.value)}"
+    def fromString(self, string : str) -> None:
+        self.type = getTokenType(string)
+        self.value = string
 
+    def __str__(self):
+        text_color = WHITE
+
+        match self.type:
+            case TokenType.UNKNOWN: text_color = GRAY
+            case TokenType.KEYWORD: text_color = RED
+            case TokenType.COMMENT: text_color = GRAY
+            case TokenType.IDENTIFIER: text_color = WHITE
+            case TokenType.TABLE: text_color = WHITE
+            case TokenType.OPERATOR: text_color = AQUA
+            case TokenType.STRING_LITERAL: text_color = YELLOW
+            case TokenType.NUMBER_LITERAL: text_color = AQUA
+            case TokenType.BOOL_LITERAL: text_color = GREEN
+            case TokenType.ELLIPSIS: text_color = AQUA
+            case TokenType.NIL: text_color = RED
+            case TokenType.EXPRESSION_START: text_color = WHITE
+            case TokenType.EXPRESSION_END: text_color = WHITE
+            case TokenType.SPECIAL: text_color = RED
+
+        return f"{text_color}{str(self.type).split('.')[1]:<20}{WHITE}{RED + self.value.replace(chr(9), '') + WHITE if self.type == TokenType.SPECIAL else repr(self.value)}"
+
+def print_tokens(token_list : list) -> None:
+    if len(token_list) == 0: return
+    if not isinstance(token_list[0], Token): return
+
+    for token in token_list:
+        print(token)
+
+def raise_error(message : str = "- not specified -"):
+    print(f"{RED}ERROR: {message}{WHITE}")
+    exit()
 
 ################
 ## Normaliser ##
@@ -221,8 +257,55 @@ def pre_tokenise(code_string : str) -> list:
         out.append(token)
 
     # End of file separator
-    out.append("\tEOL")
+    #out.append("\tEOL")
     out.append("\tEOF")
+
+    tmp = out
+    out = []
+
+    # Combine floats into one token
+    index = 0
+    while index < len(tmp):
+        token = tmp[index]
+        index += 1
+
+        out.append(token)
+
+        # End of line separator
+        if getTokenType(token) != TokenType.NUMBER_LITERAL:
+            continue
+
+        if index - 2 > 0 and index < len(tmp)-1:
+            prev = tmp[index-2]
+            curr = token
+            next = tmp[index]
+
+            if next == ".": continue
+
+            prev_is_number = getTokenType(prev) == TokenType.NUMBER_LITERAL
+            next_is_number = getTokenType(next) == TokenType.NUMBER_LITERAL
+
+            if prev_is_number:
+                if next_is_number:
+                    #print("Number pcn:", f"{prev}{curr}{next}")
+                    out.pop()
+                    out.pop()
+                    out.append(f"{prev}{curr}{next}")
+                    index += 1
+                else:
+                    #print("Number pc-:", f"{prev}{curr}")
+                    out.pop()
+                    out.pop()
+                    out.append(f"{prev}{curr}")
+            else:
+                if next_is_number:
+                    #print("Number -cn:", f"{curr}{next}")
+                    out.pop()
+                    out.append(f"{curr}{next}")
+                    index += 1
+                elif curr != ".":
+                    #print("Number -c-:", f"{curr}")
+                    pass
 
     # print out constructed tokens, nicely
     for token in out:
@@ -244,18 +327,120 @@ def pre_tokenise(code_string : str) -> list:
 
 indent_level = -1
 
+def is_keyword(token : Token, value : str = "") -> bool:
+    print("Is keyword?", token)
+    if value == "":
+        return token.type == TokenType.KEYWORD and token.value in KEYWORDS
+    else:
+        return token.type == TokenType.KEYWORD and token.value == value
+
+def is_expression(token : Token, value : str = "") -> bool:
+    if value == "":
+        if token.type == TokenType.NIL: return True
+        if token.type == TokenType.BOOL_LITERAL: return True
+        if token.type == TokenType.NUMBER_LITERAL: return True
+        if token.type == TokenType.STRING_LITERAL: return True
+        if token.type == TokenType.ELLIPSIS: return True
+        # functiondef
+        # prefixexp
+        # ...
+    else:
+        return is_expression(token) and token.value == value
+
+
+
+def grammar_exp(code_pre_tokens : list):
+    if is_expression(code_pre_tokens[0]):
+        return code_pre_tokens[0]
+    else:
+        raise_error(f"Grammar error! {code_pre_tokens}")
+
+def grammar_get_explist(code_tokens : list):
+    out = []
+
+    if len(code_tokens) == 0: return []
+    if code_tokens[0].type != TokenType.IDENTIFIER: return []
+
+    expected_separator = False
+    for token in code_tokens:
+        print(token, expected_separator)
+        if expected_separator:
+            if token.type == TokenType.UNKNOWN and token.value == ",":
+                expected_separator = False
+            elif token.type == TokenType.OPERATOR and token.value == "=":
+                break
+            else:
+                raise_error("Invalid separator detected! (in varlist)")
+        else:
+            if token.type == TokenType.IDENTIFIER:
+                out.append(token)
+                expected_separator = True
+            else:
+                raise_error("Invalid identifier detected! (in varlist)")
+                break
+
+    return out
+
+def grammar_get_varlist(code_tokens : list):
+    out = []
+
+    if len(code_tokens) == 0: return []
+    if code_tokens[0].type != TokenType.IDENTIFIER: return []
+
+    expected_separator = False
+    for token in code_tokens:
+        print(token, expected_separator)
+        if expected_separator:
+            if token.type == TokenType.UNKNOWN and token.value == ",":
+                expected_separator = False
+            elif token.type == TokenType.OPERATOR and token.value == "=":
+                break
+            else:
+                raise_error("Invalid separator detected! (in varlist)")
+        else:
+            if token.type == TokenType.IDENTIFIER:
+                out.append(token)
+                expected_separator = True
+            else:
+                raise_error("Invalid identifier detected! (in varlist)")
+                break
+
+    return out
+
+def grammar_statement(code_tokens : list):
+    varlist = grammar_get_varlist(code_tokens)
+    explist = grammar_get_explist(code_tokens[len(varlist)+1:])
+    print_tokens(explist)
+    return []
+    pass
+
+def grammar_block(code_tokens : list):
+    return grammar_statement(code_tokens)
+    #grammar_ret_statement(code_tokens)
+
+def grammar_chunk(code_tokens : list):
+    return grammar_block(code_tokens)
+
 def getTokenType(token : str) -> TokenType:
-    if re.search("^\".*\"$", token): return TokenType.STRING_LITERAL
-    if re.search("^[0-9_]*\\.?[0-9_]*$", token): return TokenType.NUMBER_LITERAL
-    if re.search("^[^[0-9]][^ ]+$", token): return TokenType.IDENTIFIER
+    if token == "\tEOL" or token == "\tEOF": return TokenType.SPECIAL
+    if token == "nil" or token == "NIL": return TokenType.NIL
+    if token == "true" or token == "false": return TokenType.BOOL_LITERAL
+    if token == "...": return TokenType.ELLIPSIS
+    if token in KEYWORDS: return TokenType.KEYWORD
+    if token in OPERATORS: return TokenType.OPERATOR
+    if re.search("^\".*\"|\'.*\'$", token): return TokenType.STRING_LITERAL
+    if re.search("^(?:[0-9_]*[\\.eE]?[0-9_]*|0[xX][0-9a-fA-F]+|0[bB][01]+)$", token): return TokenType.NUMBER_LITERAL
+    if re.search("^[a-zA-Z_]\w*$", token): return TokenType.IDENTIFIER
+    if token in "({[": return TokenType.EXPRESSION_START
+    if token in ")}]": return TokenType.EXPRESSION_END
 
     return TokenType.UNKNOWN
 
-def model(code_pre_tokens : list) -> list:
+def model_o(code_pre_tokens : list) -> list:
     global indent_level
 
     indent_level += 1
-    print(f"{indent_level * "\t"}Model:", code_pre_tokens)
+    print(indent_level * "\t", "Model:", code_pre_tokens)
 
     if len(code_pre_tokens) == 1:
         return [{"type": getTokenType(code_pre_tokens[0]), "value": code_pre_tokens[0]}]
@@ -280,7 +465,7 @@ def model(code_pre_tokens : list) -> list:
             last_token_index = index
 
         if token in BLOCK_BOUNDARY or index == len(code_pre_tokens)-1:
-            print((indent_level * "\t") + "End" if index == len(code_pre_tokens)-1 else "Boundary")
+            print(indent_level * "\t", "End" if index == len(code_pre_tokens)-1 else "Boundary")
             if is_inside_operator:
                 line["right"] = model(code_pre_tokens[last_token_index+1:index])
 
@@ -291,16 +476,29 @@ def model(code_pre_tokens : list) -> list:
                 for t in code_pre_tokens[last_token_index:index]:
                     out.append({"type": getTokenType(t), "value": t})
 
-    print((indent_level * "\t") + str(last_token_index))
+    print(indent_level * "\t", last_token_index)
 
     if last_token_index == 0:
         for t in code_pre_tokens:
             out.append({"type": getTokenType(t), "value": t})
 
-    print(f"{indent_level * "\t"}Returned:", out)
+    print(indent_level * "\t", "Returned:", out)
 
     indent_level -= 1
     return out
+
+def model(code_pre_tokens : list) -> list:
+    out = []
+
+    for index, token in enumerate(code_pre_tokens):
+        new_token = Token()
+        new_token.fromString(token)
+        print(new_token)
+        out.append(new_token)
+
+    #pp = pprint.PrettyPrinter(width=41, compact=True)
+    #pp.pprint(out)
+    return grammar_chunk(out)
 
 ########################################
 ## Tokenising (preparing compilation) ##
@@ -316,6 +514,7 @@ try:
 
         normalised_code = normalise(code_string)
         pre_tokens = pre_tokenise(normalised_code)
+        print()
         tokens = model(pre_tokens)
 
 except FileNotFoundError as e:
@@ -325,14 +524,11 @@ except FileNotFoundError as e:
 print()
 print()
 
-pp = pprint.PrettyPrinter(width=41, compact=True)
-pp.pprint(tokens)
+#pp = pprint.PrettyPrinter(width=41, compact=True)
+#pp.pprint(tokens)
 
-#for token in tokens:
-#    if token["type"] == TokenType.OPERATOR:
-#        for token["left"]
-#        print(f"{AQUA}{token['value']} {GRAY}{token['type'].name}")
-#    print()
+for token in tokens:
+    print(token)
 
 #for line in tokens:
 #    for token in line:

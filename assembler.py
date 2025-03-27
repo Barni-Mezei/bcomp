@@ -1,7 +1,7 @@
 import sys
 import os
 import argparse
-from lib import *
+from lib.lib import *
 
 arg_parser = argparse.ArgumentParser(
     exit_on_error = True,
@@ -32,9 +32,7 @@ except Exception as e:
 
 print(f"--- Loading {AQUA}commands{WHITE}")
 
-commands = load_commands(True)
-command_lookup = ["" for _ in range(0, 32)]
-for key in commands: command_lookup[int(commands[key][0])] = key
+commands, command_lookup = load_commands(True)
 
 out = []
 labels = {}

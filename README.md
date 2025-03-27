@@ -16,7 +16,7 @@ This will create a file, with roughly the same name and a `.o` extension. To vie
 
 # Compiling LUA to assembly
 
-The `compiler.py` script provides an almost full ***LUA*** to bcomp assembly support. To compile your ***LUA*** scipts to assembly, you can run the following command: `python compiler.py <your file .lua>` For additional details read the [LUA compiler](lua_compiler.md) markdown file.
+The `compiler.py` script provides an almost full ***LUA*** to bcomp assembly support. To compile your ***LUA*** scipts to assembly, you can run the following command: `python compiler.py <your file .lua>` For additional details read the [LUA compiler](doc/lua_compiler.md) markdown file.
 
 # The bcomp VM
 

@@ -5,21 +5,27 @@ AQUA = "\033[36m"
 GRAY = "\033[90m"
 WHITE = "\033[0m"
 
-def load_commands(log = False, file_path = "commands.txt"):
+def load_commands(log = False, file_path = "commands.txt") -> dict:
     commands = {}
+    lookup = ["" for _ in range(0, 32)]
 
+    # Get commands
     try:
         with open(file_path, "r", encoding="utf8") as f:
             for line in f:
                 line = line.strip().split(" ")
                 commands[line[0]] = line[1:len(line)]
+                lookup[int(line[1])] = line[0]
 
                 if log: print(f"{AQUA}{line[0]}: {GRAY}{line[1]}\t{GREEN if line[2] == '1' else RED}#{WHITE}")
     except FileNotFoundError as e:
         print(f"{RED}ERROR: 'commands.txt' is not found. Please create one, or use the command_parser.py{WHITE}")
         exit()
 
-    return commands
+    # get lookup
+    for key in commands: lookup[int(commands[key][0])] = key
+
+    return commands, lookup
 
 def binToDec(number : str):
     out = 0

@@ -104,7 +104,7 @@ str
 rtn
 
 ; Smaller
-:shift_right (shift current row data <-)
+:shift_right    ; (shift current row data <-)
 shr
 ;mca
 ;shr

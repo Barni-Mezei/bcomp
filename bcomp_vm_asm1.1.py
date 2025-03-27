@@ -1,6 +1,6 @@
 import sys
-from lib import *
-import matrixLib
+from lib.lib import *
+import lib.matrixLib
 import keyboard
 from time import sleep
 
@@ -19,7 +19,7 @@ MAX_NUMBER = 2**NUMBER_OF_BITS
 devices = {
     'display': {
         'row_index': 0,
-        'matrix': matrixLib.createMatrix(16, 16, 0),
+        'matrix': lib.matrixLib.createMatrix(16, 16, 0),
     },
 }
 
@@ -363,7 +363,7 @@ def handleOutputDevices():
             if debug: print(f"- DEVICE 'Display': Command mode")
             if decToBin(ports['output'][1][1], 16)[1] == "1": #0b11000000_00000000 -> flush
                 if debug: print(f"  Flush")
-                matrixLib.renderMatrix(devices['display']['matrix'], ".#")
+                lib.matrixLib.renderMatrix(devices['display']['matrix'], ".#")
         else:
             #Row index mode
             if debug: print(f"- DEVICE 'Display': Row index mode ({trimToSize(ports['output'][1][1], 4)})")
