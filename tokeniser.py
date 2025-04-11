@@ -15,6 +15,28 @@ Made by: Barni - 2025.03.14
 [ ] Postprocessor    - add additional tokens, correct missing tokens
 """
 
+"""
+#############################
+#The actually supported BNF #
+#############################
+
+chunk ::= block
+
+block ::= {stat}
+
+stat ::=
+    ';' | 
+    varlist '=' explist |
+
+varlist ::= var {',' var}
+
+var ::= Name | prefixexp . Name
+
+exp ::=  nil | false | true | Numeral | LiteralString | '...'
+
+prefixexp ::= var
+"""
+
 import sys
 import os
 import argparse
@@ -59,6 +81,8 @@ except Exception as e:
 ## Constants ##
 ###############
 
+code_pointer = 0
+
 TOKEN_SEPARATORS = ['\n', ' ', ',', ':', '.', '(', ')', '{', '}', '[', ']']
 OPERATORS = ['=', '+', '-', '*', '/', '%', '^', '&', '|', '~', '<', '>',
              '<=', '>=', '==', '<<', '>>', '//', '~=', '#', '::', '..']
@@ -94,16 +118,20 @@ class Character:
 class Token:
     type = TokenType.UNKNOWN
     value = ""
-    place : Character
+    _place : Character
 
     def __init__(self, type : TokenType = TokenType.UNKNOWN, value : str = "", row = -1, col = -1) -> None:
         self.type = type
         self.value = value
-        self.place = Character(row, col)
+        self._place = Character(row, col)
 
     def fromString(self, string : str) -> None:
         self.type = getTokenType(string)
         self.value = string
+
+    @property
+    def place(self):
+        return f"[Ln {str(self._place.row + 1)} Col {str(self._place.col + 1)}]"
 
     def __str__(self):
         text_color = WHITE
@@ -124,7 +152,7 @@ class Token:
             case TokenType.EXPRESSION_END: text_color = WHITE
             case TokenType.SPECIAL: text_color = RED
 
-        return f"{text_color}{str(self.type).split('.')[1]:<20}{WHITE}[Ln {str(self.place.row):<2} Col {str(self.place.col):<2}] {RED + self.value.replace(chr(9), '') + WHITE if self.type == TokenType.SPECIAL else repr(self.value)}"
+        return f"{text_color}{str(self.type).split('.')[1]:<20}{WHITE}{self.place:<15}{RED + self.value.replace(chr(9), '') + WHITE if self.type == TokenType.SPECIAL else repr(self.value)}"
 
 def print_tokens(token_list : list, title : str = "") -> None:
     if len(token_list) == 0: return
@@ -160,8 +188,6 @@ def pre_tokenise(code_string : str) -> list:
 
     # Tokenise code (by the separators)
     for char in code_string:
-        #column += 1
-
         if escaped:
             current_token += char
             escaped = False
@@ -345,15 +371,15 @@ def pre_tokenise(code_string : str) -> list:
 
     # print out constructed tokens, nicely
     for token in out:
-        if token == "\tEOL":
+        if token["value"] == "\tEOL":
             print(f"{AQUA}|{WHITE}")
             continue
         
-        if token == "\tEOF":
+        if token["value"] == "\tEOF":
             print(f"{RED}End of file{WHITE}")
             continue
 
-        print(token, end=" ")
+        print(token["value"], end=" ")
 
     return out
 
@@ -389,23 +415,22 @@ def grammar_exp(code_pre_tokens : list):
     else:
         log(f"Grammar error! {code_pre_tokens}", "error")
 
-def grammar_get_explist(code_tokens : list):
+def grammar_get_explist(code_tokens : list, code_pointer : int):
+    pointer_offset = -1
     out = []
 
-    if len(code_tokens) == 0:
-        log("No explist found!", "error")
-        return False
-
-    if not is_expression(code_tokens[0]):
-        log("Explist starts with the wrong type!", "error")
+    if not is_expression(code_tokens[code_pointer]):
+        log(f"Explist starts with the wrong type! {code_tokens[code_pointer].place}", "error")
         return False
 
     expected_separator = False
     for token in code_tokens:
+        pointer_offset += 1
+
         if token.type == TokenType.SPECIAL and token.value == "\tEOF":
             break
     
-        print(token, expected_separator)
+        #print(token, expected_separator)
         if expected_separator:
             if token.type == TokenType.UNKNOWN and token.value == ",":
                 expected_separator = False
@@ -419,84 +444,140 @@ def grammar_get_explist(code_tokens : list):
                 out.append(token)
                 expected_separator = True
             else:
-                log("Invalid identifier detected!", "error")
+                log(f"Invalid expression detected! {token.place}", "error")
                 return False
 
-    return out
+    return out, pointer_offset
 
-def grammar_get_varlist(code_tokens : list):
+# End of chain
+def grammar_get_var(code_tokens : list, code_pointer : int):
+    if code_tokens[code_pointer].value == "\tEOF": return False, 0
+
+    if code_tokens[code_pointer].type == TokenType.IDENTIFIER:
+        if code_pointer + 2 < len(code_tokens) - 1 and code_tokens[code_pointer + 1].value == ".":
+        else:
+        return {}
+    pass
+
+def grammar_get_varlist(code_tokens : list, code_pointer : int):
+    pointer_offset = -1
     out = []
 
-    if len(code_tokens) == 0: return []
-    if code_tokens[0].type != TokenType.IDENTIFIER: return []
+    if code_tokens[code_pointer].type != TokenType.IDENTIFIER:
+        log(f"Varlist starts with the wrong type! {code_tokens[code_pointer].place}", "error")
+        return False
 
     expected_separator = False
-    for token in code_tokens:
-        #print(token, expected_separator)
+    iter = 0
+    while code_pointer + pointer_offset < len(code_tokens) - 1:
+        iter += 1
+
         if expected_separator:
-            if token.type == TokenType.UNKNOWN and token.value == ",":
+            if token.value == ",": # New var is coming
                 expected_separator = False
-            elif token.type == TokenType.OPERATOR and token.value == "=":
+                pointer_offset += 1
+            else:
                 break
-            else:
-                log("Invalid separator detected!", "error")
-                return False
         else:
-            if token.type == TokenType.IDENTIFIER:
-                out.append(token)
-                expected_separator = True
-            else:
-                log("Invalid identifier detected!", "error")
+            result = grammar_get_var(code_tokens, code_pointer + pointer_offset)
+
+            if result == False:
+                log(f"Invalid var detected! {token.place}", "error")
                 return False
 
-    return out
+            out.append(result[0])
+            expected_separator = True
 
+    return {"type": "varlist", "vars": out}, pointer_offset
 
-def try_statement_assignment(code_tokens : list):
+def try_statement_assignment(code_tokens : list, code_pointer : int):    
     log_group("Varlist")
-    varlist = grammar_get_varlist(code_tokens)
+    result_varlist = grammar_get_varlist(code_tokens, code_pointer)
     log_group_end()
-    if varlist == False: return False
+    if result_varlist == False: return False
+
+    print(result_varlist)
+
+    pointer_offset = result_varlist[1]
 
     log_group("Explist")
-    explist = grammar_get_explist(code_tokens[len(varlist)+1:])
+    result_explist = grammar_get_explist(code_tokens, code_pointer + pointer_offset + 1)
     log_group_end()
-    if explist == False: return False
+    if result_explist == False: return False
 
-    return {"type": "assignment", "varlist": varlist, "explist": explist}
+    pointer_offset += result_explist[1]
 
-def try_statement(code_tokens : list):
+    return {"type": "assignment", "varlist": result_varlist[0], "explist": result_explist[0]}, code_pointer + pointer_offset
+
+def try_statement_semicolon(code_tokens : list, code_pointer : int):
+    success = False
+
+    log_group("Semicolon")
+    if len(code_tokens) == 0:
+        log("No semicolon found!", "error")
+        success = False
+
+    if code_tokens[code_pointer].value == ";":
+        success = True
+
+    log_group_end()
+    if success == False: return False
+
+    return {"type": "semicolon"}, 1
+
+def try_statement(code_tokens : list, code_pointer : int):
     # Try all defined statements
     all_statements = [
-        try_statement_assignment # Looks like: a, b = 5, 8
+        try_statement_semicolon, # Looks like: ";"
+        try_statement_assignment, # Looks like: "a.k, b = 'test', 8"
     ]
 
     # Return with the result
-    for statement in all_statements:
-        result = statement(code_tokens)
+    for index, statement in enumerate(all_statements):
+        result = statement(code_tokens, code_pointer)
         if result != False: return result
 
     # Default to failure (no statement found)
-    return False
+    return False, 0
 
-def grammar_statement(code_tokens : list):
-    pointer = 0
+def grammar_statement(code_tokens : list, code_pointer : int):
+    out = []
 
-    log_group("Single statement")
-    result = try_statement(code_tokens[pointer:])
-    log_group_end()
+    pointer_offset = 0
 
-    return result
+    iter = 0
+    max_iter = 2
 
-def grammar_block(code_tokens : list):
+    while iter < max_iter and code_pointer+pointer_offset < len(code_tokens):
+        current_token = code_tokens[code_pointer + pointer_offset]
+        log_group(f"Single statement ({current_token})")
+        result = try_statement(code_tokens, code_pointer + pointer_offset)
+        log_group_end()
+
+        if result == False: return False
+
+        print("Parsed:", result[0])
+        print("Offset:", result[1])
+
+        out.append(result[0])
+        pointer_offset += result[1]
+
+        iter += 1
+
+    if iter > max_iter:
+        log("Max statement iterations reached!", "error")
+
+    return out
+
+def grammar_block(code_tokens : list, code_pointer : int):
     log_group("Statement list")
-    result = grammar_statement(code_tokens)
+    result = grammar_statement(code_tokens, 0)
     log_group_end()
 
     return result
 
 def grammar_chunk(code_tokens : list):
-    return grammar_block(code_tokens)
+    return grammar_block(code_tokens, 0)
 
 def getTokenType(token : str) -> TokenType:
     if token == "\tEOL" or token == "\tEOF": return TokenType.SPECIAL

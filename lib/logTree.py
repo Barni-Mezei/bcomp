@@ -61,8 +61,8 @@ def __print_log(log_tree : list):
         if log["type"] == "error":
             color = RED
             indentation_base = f"{RED}────"
-            prev_indentation = "────"
-            indentation = "──> "
+            prev_indentation = f"{RED}────"
+            indentation = f"{RED}──> "
         if __log_tree_print_depth == 0:
             indentation = ""
         if __log_tree_print_depth < 2:
