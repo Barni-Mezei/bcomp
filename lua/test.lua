@@ -1,3 +1,3 @@
-a = 3
-
-print("asd")
+if a == 2.34 then
+    print("Hello!")
+end

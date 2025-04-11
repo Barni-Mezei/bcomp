@@ -21,7 +21,9 @@ import argparse
 from enum import Enum
 import pprint
 import re
+import random
 from lib.lib import *
+from lib.logTree import *
 
 arg_parser = argparse.ArgumentParser(
     exit_on_error = True,
@@ -81,13 +83,23 @@ class TokenType(Enum):
     EXPRESSION_END = 11 # )
     SPECIAL = 99 # The control characters
 
+class Character:
+    row = 0
+    col = 0
+
+    def __init__(self, row : int, column : int) -> None:
+        self.row = row
+        self.col = column
+
 class Token:
     type = TokenType.UNKNOWN
     value = ""
+    place : Character
 
-    def __init__(self, type : TokenType = TokenType.UNKNOWN, value : str = "") -> None:
+    def __init__(self, type : TokenType = TokenType.UNKNOWN, value : str = "", row = -1, col = -1) -> None:
         self.type = type
         self.value = value
+        self.place = Character(row, col)
 
     def fromString(self, string : str) -> None:
         self.type = getTokenType(string)
@@ -112,18 +124,17 @@ class Token:
             case TokenType.EXPRESSION_END: text_color = WHITE
             case TokenType.SPECIAL: text_color = RED
 
-        return f"{text_color}{str(self.type).split('.')[1]:<20}{WHITE}{RED + self.value.replace(chr(9), '') + WHITE if self.type == TokenType.SPECIAL else repr(self.value)}"
+        return f"{text_color}{str(self.type).split('.')[1]:<20}{WHITE}[Ln {str(self.place.row):<2} Col {str(self.place.col):<2}] {RED + self.value.replace(chr(9), '') + WHITE if self.type == TokenType.SPECIAL else repr(self.value)}"
 
-def print_tokens(token_list : list) -> None:
+def print_tokens(token_list : list, title : str = "") -> None:
     if len(token_list) == 0: return
     if not isinstance(token_list[0], Token): return
 
+    if title != "":
+        print(f"\n{title}")
+
     for token in token_list:
         print(token)
-
-def raise_error(message : str = "- not specified -"):
-    print(f"{RED}ERROR: {message}{WHITE}")
-    exit()
 
 ################
 ## Normaliser ##
@@ -144,9 +155,13 @@ def pre_tokenise(code_string : str) -> list:
     tmp = []
 
     current_string_boundary = ""
+    line_number = 0
+    column = 0
 
     # Tokenise code (by the separators)
     for char in code_string:
+        #column += 1
+
         if escaped:
             current_token += char
             escaped = False
@@ -160,8 +175,15 @@ def pre_tokenise(code_string : str) -> list:
         if current_string_boundary != "" and (char == current_string_boundary or char == "\n"):
             current_string_boundary = ""
             current_token += char
-            out.append({"token": current_token, "separator": " "})
+            out.append({"token": current_token, "separator": " ", "row": line_number, "col": column})
+            column += len(current_token) + 1
+
             current_token = ""
+
+            if char == "\n":
+                line_number += 1
+                column = 0
+
             continue
 
         # String starts
@@ -176,13 +198,21 @@ def pre_tokenise(code_string : str) -> list:
             continue
 
         if char in TOKEN_SEPARATORS or char in OPERATORS:
-            out.append({"token": current_token, "separator": char})
+            out.append({"token": current_token, "separator": char, "row": line_number, "col": column})
+            column += len(current_token) + 1
+
             current_token = ""
+
+            if char == "\n":
+                line_number += 1
+                column = 0
+
             continue
 
         current_token += char
 
-    if len(current_token) > 0: out.append({"token": current_token, "separator": "\n"})
+    if len(current_token) > 0:
+        out.append({"token": current_token, "separator": "\n", "row": line_number, "col": column})
 
     # Remove unnecessary spaces + combine certain tokens into one
     had_new_line = False
@@ -209,14 +239,15 @@ def pre_tokenise(code_string : str) -> list:
     for token_data in tmp:
         token = token_data["token"]
         separator = token_data["separator"]
+        separator_col = token_data["col"] + len(token)
 
         if len(token) == 0:
-            out.append(separator)
+            out.append({"value": separator, "row": token_data["row"], "col": separator_col})
         elif separator == " ":
-            out.append(token)
+            out.append({"value": token, "row": token_data["row"], "col": token_data["col"]})
         else:
-            out.append(token)
-            out.append(separator)
+            out.append({"value": token, "row": token_data["row"], "col": token_data["col"]})
+            out.append({"value": separator, "row": token_data["row"], "col": separator_col})
 
     tmp = out
     out = []
@@ -229,9 +260,13 @@ def pre_tokenise(code_string : str) -> list:
         token = tmp[index]
         index += 1
 
+        # Keep track of where are you in the file
+        line_number = token["row"]
+        column = token["col"] + len(token["value"])
+
         # End of line separator
-        if token == "\n":
-            out.append("\tEOL")
+        if token["value"] == "\n":
+            #out.append("\tEOL")
             continue
 
         # Find and replace patterns
@@ -239,14 +274,14 @@ def pre_tokenise(code_string : str) -> list:
         for pattern in patterns:
             result = False
             for offset, char in enumerate(pattern):
-                if index-1 + offset < len(tmp) and tmp[index-1 + offset] == char:
+                if index-1 + offset < len(tmp) and tmp[index-1 + offset]["value"] == char:
                     result = True
                 else:
                     result = False
                     break
 
             if result:
-                out.append(pattern)
+                out.append({"value": pattern, "row": token["row"], "col": token["col"]})
                 index += len(pattern) - 1
                 pattern_found = True
                 break
@@ -257,8 +292,7 @@ def pre_tokenise(code_string : str) -> list:
         out.append(token)
 
     # End of file separator
-    #out.append("\tEOL")
-    out.append("\tEOF")
+    out.append({"value":"\tEOF", "row": line_number, "col": column})
 
     tmp = out
     out = []
@@ -267,43 +301,45 @@ def pre_tokenise(code_string : str) -> list:
     index = 0
     while index < len(tmp):
         token = tmp[index]
+        token_value = token["value"]
         index += 1
 
         out.append(token)
 
         # End of line separator
-        if getTokenType(token) != TokenType.NUMBER_LITERAL:
+        if getTokenType(token_value) != TokenType.NUMBER_LITERAL:
             continue
 
         if index - 2 > 0 and index < len(tmp)-1:
             prev = tmp[index-2]
-            curr = token
+            prev_value = prev["value"]
             next = tmp[index]
+            next_value = next["value"]
 
-            if next == ".": continue
+            if next_value == ".": continue
 
-            prev_is_number = getTokenType(prev) == TokenType.NUMBER_LITERAL
-            next_is_number = getTokenType(next) == TokenType.NUMBER_LITERAL
+            prev_is_number = getTokenType(prev_value) == TokenType.NUMBER_LITERAL
+            next_is_number = getTokenType(next_value) == TokenType.NUMBER_LITERAL
 
             if prev_is_number:
                 if next_is_number:
                     #print("Number pcn:", f"{prev}{curr}{next}")
                     out.pop()
                     out.pop()
-                    out.append(f"{prev}{curr}{next}")
+                    out.append({"value": prev_value+token_value+next_value, "row": prev["row"], "col": prev["col"]})
                     index += 1
                 else:
                     #print("Number pc-:", f"{prev}{curr}")
                     out.pop()
                     out.pop()
-                    out.append(f"{prev}{curr}")
+                    out.append({"value": prev_value+token_value, "row": prev["row"], "col": prev["col"]})
             else:
                 if next_is_number:
                     #print("Number -cn:", f"{curr}{next}")
                     out.pop()
-                    out.append(f"{curr}{next}")
+                    out.append({"value": token_value+next_value, "row": token["row"], "col": token["col"]})
                     index += 1
-                elif curr != ".":
+                elif token_value != ".":
                     #print("Number -c-:", f"{curr}")
                     pass
 
@@ -347,22 +383,28 @@ def is_expression(token : Token, value : str = "") -> bool:
     else:
         return is_expression(token) and token.value == value
 
-
-
 def grammar_exp(code_pre_tokens : list):
     if is_expression(code_pre_tokens[0]):
         return code_pre_tokens[0]
     else:
-        raise_error(f"Grammar error! {code_pre_tokens}")
+        log(f"Grammar error! {code_pre_tokens}", "error")
 
 def grammar_get_explist(code_tokens : list):
     out = []
 
-    if len(code_tokens) == 0: return []
-    if code_tokens[0].type != TokenType.IDENTIFIER: return []
+    if len(code_tokens) == 0:
+        log("No explist found!", "error")
+        return False
+
+    if not is_expression(code_tokens[0]):
+        log("Explist starts with the wrong type!", "error")
+        return False
 
     expected_separator = False
     for token in code_tokens:
+        if token.type == TokenType.SPECIAL and token.value == "\tEOF":
+            break
+    
         print(token, expected_separator)
         if expected_separator:
             if token.type == TokenType.UNKNOWN and token.value == ",":
@@ -370,14 +412,15 @@ def grammar_get_explist(code_tokens : list):
             elif token.type == TokenType.OPERATOR and token.value == "=":
                 break
             else:
-                raise_error("Invalid separator detected! (in varlist)")
+                # End of statement
+                break
         else:
-            if token.type == TokenType.IDENTIFIER:
+            if is_expression(token):
                 out.append(token)
                 expected_separator = True
             else:
-                raise_error("Invalid identifier detected! (in varlist)")
-                break
+                log("Invalid identifier detected!", "error")
+                return False
 
     return out
 
@@ -389,34 +432,68 @@ def grammar_get_varlist(code_tokens : list):
 
     expected_separator = False
     for token in code_tokens:
-        print(token, expected_separator)
+        #print(token, expected_separator)
         if expected_separator:
             if token.type == TokenType.UNKNOWN and token.value == ",":
                 expected_separator = False
             elif token.type == TokenType.OPERATOR and token.value == "=":
                 break
             else:
-                raise_error("Invalid separator detected! (in varlist)")
+                log("Invalid separator detected!", "error")
+                return False
         else:
             if token.type == TokenType.IDENTIFIER:
                 out.append(token)
                 expected_separator = True
             else:
-                raise_error("Invalid identifier detected! (in varlist)")
-                break
+                log("Invalid identifier detected!", "error")
+                return False
 
     return out
 
-def grammar_statement(code_tokens : list):
+
+def try_statement_assignment(code_tokens : list):
+    log_group("Varlist")
     varlist = grammar_get_varlist(code_tokens)
+    log_group_end()
+    if varlist == False: return False
+
+    log_group("Explist")
     explist = grammar_get_explist(code_tokens[len(varlist)+1:])
-    print_tokens(explist)
-    return []
-    pass
+    log_group_end()
+    if explist == False: return False
+
+    return {"type": "assignment", "varlist": varlist, "explist": explist}
+
+def try_statement(code_tokens : list):
+    # Try all defined statements
+    all_statements = [
+        try_statement_assignment # Looks like: a, b = 5, 8
+    ]
+
+    # Return with the result
+    for statement in all_statements:
+        result = statement(code_tokens)
+        if result != False: return result
+
+    # Default to failure (no statement found)
+    return False
+
+def grammar_statement(code_tokens : list):
+    pointer = 0
+
+    log_group("Single statement")
+    result = try_statement(code_tokens[pointer:])
+    log_group_end()
+
+    return result
 
 def grammar_block(code_tokens : list):
-    return grammar_statement(code_tokens)
-    #grammar_ret_statement(code_tokens)
+    log_group("Statement list")
+    result = grammar_statement(code_tokens)
+    log_group_end()
+
+    return result
 
 def grammar_chunk(code_tokens : list):
     return grammar_block(code_tokens)
@@ -430,75 +507,27 @@ def getTokenType(token : str) -> TokenType:
     if token in OPERATORS: return TokenType.OPERATOR
     if re.search("^\".*\"|\'.*\'$", token): return TokenType.STRING_LITERAL
     if re.search("^(?:[0-9_]*[\\.eE]?[0-9_]*|0[xX][0-9a-fA-F]+|0[bB][01]+)$", token): return TokenType.NUMBER_LITERAL
-    if re.search("^[a-zA-Z_]\w*$", token): return TokenType.IDENTIFIER
+    if re.search("^[a-zA-Z_]\\w*$", token): return TokenType.IDENTIFIER
     if token in "({[": return TokenType.EXPRESSION_START
     if token in ")}]": return TokenType.EXPRESSION_END
 
     return TokenType.UNKNOWN
 
-def model_o(code_pre_tokens : list) -> list:
-    global indent_level
-
-    indent_level += 1
-    print(indent_level * "\t", "Model:", code_pre_tokens)
-
-    if len(code_pre_tokens) == 1:
-        return [{"type": getTokenType(code_pre_tokens[0]), "value": code_pre_tokens[0]}]
-
-    out = []
-    last_token_index = 0
-    line = {}
-
-    is_inside_operator = False
-
-    for index, token in enumerate(code_pre_tokens):
-        if not is_inside_operator:
-            if token in OPERATORS:
-                line = {}
-                line["left"] = model(code_pre_tokens[last_token_index:index])
-                line["type"] = TokenType.OPERATOR
-                line["value"] = token
-                last_token_index = index
-                is_inside_operator = True
-                continue
-
-            last_token_index = index
-
-        if token in BLOCK_BOUNDARY or index == len(code_pre_tokens)-1:
-            print(indent_level * "\t", "End" if index == len(code_pre_tokens)-1 else "Boundary")
-            if is_inside_operator:
-                line["right"] = model(code_pre_tokens[last_token_index+1:index])
-
-                is_inside_operator = False
-
-                out.append(line)
-            else:
-                for t in code_pre_tokens[last_token_index:index]:
-                    out.append({"type": getTokenType(t), "value": t})
-
-    print(indent_level * "\t", last_token_index)
-
-    if last_token_index == 0:
-        for t in code_pre_tokens:
-            out.append({"type": getTokenType(t), "value": t})
-
-    print(indent_level * "\t", "Returned:", out)
-
-    indent_level -= 1
-    return out
-
 def model(code_pre_tokens : list) -> list:
     out = []
 
     for index, token in enumerate(code_pre_tokens):
-        new_token = Token()
-        new_token.fromString(token)
+        new_token = Token(row = token["row"], col = token["col"])
+        new_token.fromString(token["value"])
         print(new_token)
         out.append(new_token)
 
     #pp = pprint.PrettyPrinter(width=41, compact=True)
     #pp.pprint(out)
+
+    log_tree = []
     return grammar_chunk(out)
+    #return []
 
 ########################################
 ## Tokenising (preparing compilation) ##
@@ -517,18 +546,20 @@ try:
         print()
         tokens = model(pre_tokens)
 
+        print_logs()
+
 except FileNotFoundError as e:
     print(f"{RED}File not found!{WHITE}")
     exit()
 
-print()
-print()
+print("\nModel:")
 
-#pp = pprint.PrettyPrinter(width=41, compact=True)
-#pp.pprint(tokens)
+pp = pprint.PrettyPrinter(width=41, compact=True)
+pp.pprint(tokens)
 
-for token in tokens:
-    print(token)
+if tokens:
+    for token in tokens:
+        print(token)
 
 #for line in tokens:
 #    for token in line:
