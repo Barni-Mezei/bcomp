@@ -29,12 +29,12 @@ stat ::=
     varlist '=' explist |
 
 varlist ::= var {',' var}
-
 var ::= Name | prefixexp . Name
 
+explist ::= exp {',' exp}
 exp ::=  nil | false | true | Numeral | LiteralString | '...'
 
-prefixexp ::= var
+prefixexp ::= var | '(' exp ')'
 """
 
 import sys
@@ -82,6 +82,7 @@ except Exception as e:
 ###############
 
 code_pointer = 0
+max_recursion_depth = 32
 
 TOKEN_SEPARATORS = ['\n', ' ', ',', ':', '.', '(', ')', '{', '}', '[', ']']
 OPERATORS = ['=', '+', '-', '*', '/', '%', '^', '&', '|', '~', '<', '>',
@@ -409,14 +410,35 @@ def is_expression(token : Token, value : str = "") -> bool:
     else:
         return is_expression(token) and token.value == value
 
-def grammar_exp(code_pre_tokens : list):
-    if is_expression(code_pre_tokens[0]):
-        return code_pre_tokens[0]
+# End of chain
+def grammar_get_prefixexp(code_tokens : list, code_pointer : int, call_num : int = 0):
+    if call_num > max_recursion_depth: return False
+    if code_tokens[code_pointer].value == "\tEOF": return False
+
+    print("Prefix exp", code_tokens[code_pointer])
+
+    if code_tokens[code_pointer].value == "(" and code_pointer + 2 < len(code_tokens) - 1:
+        exp_result = grammar_get_exp(code_tokens, code_pointer, call_num + 1)
+        print("Exp result")
     else:
-        log(f"Grammar error! {code_pre_tokens}", "error")
+        var_result = grammar_get_var(code_tokens, code_pointer, call_num + 1)
+        if var_result == False: return False
+
+        return var_result[0], var_result[1]
+
+
+# End of chain
+def grammar_get_exp(code_tokens : list, code_pointer : int, call_num : int):
+    if call_num > max_recursion_depth: return False
+    if code_tokens[code_pointer].value == "\tEOF": return False
+
+    if is_expression(code_tokens[code_pointer]):
+        return {"type": "exp", "exp_type": code_tokens[code_pointer].type, "value": code_tokens[code_pointer].value}, 1
+    else:
+        return False
 
 def grammar_get_explist(code_tokens : list, code_pointer : int):
-    pointer_offset = -1
+    pointer_offset = 0
     out = []
 
     if not is_expression(code_tokens[code_pointer]):
@@ -424,53 +446,62 @@ def grammar_get_explist(code_tokens : list, code_pointer : int):
         return False
 
     expected_separator = False
-    for token in code_tokens:
-        pointer_offset += 1
+    iter = 0
+    while code_pointer + pointer_offset < len(code_tokens) - 1:
+        iter += 1
+        token = code_tokens[code_pointer + pointer_offset]
 
-        if token.type == TokenType.SPECIAL and token.value == "\tEOF":
-            break
-    
-        #print(token, expected_separator)
         if expected_separator:
-            if token.type == TokenType.UNKNOWN and token.value == ",":
+            if token.value == ",": # New exp is coming
                 expected_separator = False
-            elif token.type == TokenType.OPERATOR and token.value == "=":
-                break
+                pointer_offset += 1
             else:
-                # End of statement
                 break
         else:
-            if is_expression(token):
-                out.append(token)
-                expected_separator = True
-            else:
-                log(f"Invalid expression detected! {token.place}", "error")
+            result = grammar_get_exp(code_tokens, code_pointer + pointer_offset, 0)
+
+            if result == False:
+                log(f"Invalid exp detected! {token.place}", "error")
                 return False
 
-    return out, pointer_offset
+            out.append(result[0])
+            pointer_offset += result[1]
+            expected_separator = True
+
+    return {"type": "explist", "exps": out}, pointer_offset
 
 # End of chain
-def grammar_get_var(code_tokens : list, code_pointer : int):
-    if code_tokens[code_pointer].value == "\tEOF": return False, 0
+def grammar_get_var(code_tokens : list, code_pointer : int, call_num : int):
+    if call_num > max_recursion_depth: return False
+    if code_tokens[code_pointer].value == "\tEOF": return False
 
-    if code_tokens[code_pointer].type == TokenType.IDENTIFIER:
+    if code_tokens[code_pointer].type == TokenType.IDENTIFIER: # Is Name
         if code_pointer + 2 < len(code_tokens) - 1 and code_tokens[code_pointer + 1].value == ".":
+            result = grammar_get_prefixexp(code_tokens, code_pointer + 2, call_num + 1)
+            var_name = code_tokens[code_pointer].value + "." + result[0]["value"]
+            return {"type": "var", "value": var_name}, result[1] + 2
         else:
-        return {}
-    pass
+            return {"type": "var", "value": code_tokens[code_pointer].value}, 1
+    else: # Not a name
+        result = grammar_get_prefixexp(code_tokens, code_pointer + 2, call_num + 1)
+        print("NOT NAME Result", result)
+
+    return False
 
 def grammar_get_varlist(code_tokens : list, code_pointer : int):
-    pointer_offset = -1
+    pointer_offset = 0
     out = []
 
-    if code_tokens[code_pointer].type != TokenType.IDENTIFIER:
+    if code_tokens[code_pointer].type != TokenType.IDENTIFIER and code_tokens[code_pointer].value != "(":
         log(f"Varlist starts with the wrong type! {code_tokens[code_pointer].place}", "error")
         return False
+
 
     expected_separator = False
     iter = 0
     while code_pointer + pointer_offset < len(code_tokens) - 1:
         iter += 1
+        token = code_tokens[code_pointer + pointer_offset]
 
         if expected_separator:
             if token.value == ",": # New var is coming
@@ -479,13 +510,14 @@ def grammar_get_varlist(code_tokens : list, code_pointer : int):
             else:
                 break
         else:
-            result = grammar_get_var(code_tokens, code_pointer + pointer_offset)
+            result = grammar_get_var(code_tokens, code_pointer + pointer_offset, 0)
 
             if result == False:
                 log(f"Invalid var detected! {token.place}", "error")
                 return False
 
             out.append(result[0])
+            pointer_offset += result[1]
             expected_separator = True
 
     return {"type": "varlist", "vars": out}, pointer_offset
@@ -496,7 +528,7 @@ def try_statement_assignment(code_tokens : list, code_pointer : int):
     log_group_end()
     if result_varlist == False: return False
 
-    print(result_varlist)
+    print("varlist", result_varlist)
 
     pointer_offset = result_varlist[1]
 
@@ -505,7 +537,7 @@ def try_statement_assignment(code_tokens : list, code_pointer : int):
     log_group_end()
     if result_explist == False: return False
 
-    pointer_offset += result_explist[1]
+    pointer_offset += result_explist[1] + 1
 
     return {"type": "assignment", "varlist": result_varlist[0], "explist": result_explist[0]}, code_pointer + pointer_offset
 
