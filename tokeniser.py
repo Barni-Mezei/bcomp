@@ -16,6 +16,12 @@ Made by: Barni - 2025.03.14
 """
 
 """
+TODO:
+- prefixexp -> functioncall
+- BNF recursion problem (var -> prefixexp -> var ...)
+
+- If the first token is a float, it will not combine into one. ['12', '.', '4'] != ['12.4']
+
 #############################
 #The actually supported BNF #
 #############################
@@ -29,12 +35,12 @@ stat ::=
     varlist '=' explist |
 
 varlist ::= var {',' var}
-var ::= Name | prefixexp . Name
+var ::= Name | prefixexp? . Name
 
 explist ::= exp {',' exp}
-exp ::=  nil | false | true | Numeral | LiteralString | '...'
+exp ::=  nil | false | true | Numeral | LiteralString | '...' | prefixexp?
 
-prefixexp ::= var | '(' exp ')'
+prefixexp ::= var | '(' exp ')'?
 """
 
 import sys
@@ -47,35 +53,36 @@ import random
 from lib.lib import *
 from lib.logTree import *
 
-arg_parser = argparse.ArgumentParser(
-    exit_on_error = True,
-    prog = "BCOMP assembly compiler",
-    description = "This program compiles your '.lua' files in to '.asm' files",
-    usage="To compile your code, you have to specify the path to the '.lua' file, and run it.\n"
-    "If you want to specify the output location of the '.asm' file, you can use the -o parameter.\nIf you want to name your output file, you can use the -f parameter.\n"
-    "For other additional information, please read the 'lua_compiler.md' file.",
-)
+if __name__ == "__main__":
+    arg_parser = argparse.ArgumentParser(
+        exit_on_error = True,
+        prog = "BCOMP assembly compiler",
+        description = "This program compiles your '.lua' files in to '.asm' files",
+        usage="To compile your code, you have to specify the path to the '.lua' file, and run it.\n"
+        "If you want to specify the output location of the '.asm' file, you can use the -o parameter.\nIf you want to name your output file, you can use the -f parameter.\n"
+        "For other additional information, please read the 'lua_compiler.md' file.",
+    )
 
-arg_parser.add_argument('input_file', help="The path to your '.lua' file")
-arg_parser.add_argument('-o', '--output-path', help="The path to the directory, that will contain your compiled code")
-arg_parser.add_argument('-f', '--file-name', help="The name of your compiled file. Filetype will be ignored!")
-arg_parser.add_argument('-w', '--warn', help="Disables all warning messages")
-arg_parser.add_argument('-Wall', '--warn-all', help="Enables the extended warnining messages")
+    arg_parser.add_argument('input_file', help="The path to your '.lua' file")
+    arg_parser.add_argument('-o', '--output-path', help="The path to the directory, that will contain your compiled code")
+    arg_parser.add_argument('-f', '--file-name', help="The name of your compiled file. Filetype will be ignored!")
+    arg_parser.add_argument('-w', '--warn', help="Disables all warning messages")
+    arg_parser.add_argument('-Wall', '--warn-all', help="Enables the extended warnining messages")
 
-# Parse command line arguments
-if len(sys.argv[1::]) == 0:
-    print(f"{RED}No input file given!{WHITE}")
-    exit()
+    # Parse command line arguments
+    if len(sys.argv[1::]) == 0:
+        print(f"{RED}No input file given!{WHITE}")
+        exit()
 
-if len(sys.argv) > 1 and not ".lua" in sys.argv[1]:
-    print(f"{RED}Missing or invalid file type! (Must be .lua){WHITE}")
-    exit()
+    if len(sys.argv) > 1 and not ".lua" in sys.argv[1]:
+        print(f"{RED}Missing or invalid file type! (Must be .lua){WHITE}")
+        exit()
 
-try:
-    arguments = arg_parser.parse_args()
-except Exception as e:
-    print(f"{RED}ERROR: {str(e).capitalize()}{WHITE}")
-    exit()
+    try:
+        arguments = arg_parser.parse_args()
+    except Exception as e:
+        print(f"{RED}ERROR: {str(e).capitalize()}{WHITE}")
+        exit()
 
 ###############
 ## Constants ##
@@ -410,32 +417,197 @@ def is_expression(token : Token, value : str = "") -> bool:
     else:
         return is_expression(token) and token.value == value
 
-# End of chain
-def grammar_get_prefixexp(code_tokens : list, code_pointer : int, call_num : int = 0):
-    if call_num > max_recursion_depth: return False
+
+
+
+
+
+
+
+
+
+
+###################
+# Get <prefixexp> #
+###################
+
+def try_prefixexp_var(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
+    if caller == "var": return False
+
+    result = grammar_get_var(code_tokens, code_pointer, caller)
+
+    if result == False: return False
+    return result[0], result[1]
+
+def try_prefixexp_exp(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
+    if caller == "exp": return False
+
+    if code_tokens[code_pointer].value == "(":
+        result = grammar_get_exp(code_tokens, code_pointer, caller)
+
+        print("try_prefixexp_exp result:", result)
+
+    return False
+
+def try_prefixexp(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
+    # Try all defined prefixexps
+    all_expressions = [
+        try_prefixexp_var,  #Looks like: <var>
+        #try_prefixexp_exp,  #Looks like: "(" <exp> ")"
+    ]
+
+    # Return with the result
+    for index, expression in enumerate(all_expressions):
+        result = expression(code_tokens, code_pointer, caller)
+        if result != False: return result
+
+    # Default to failure (no prefixexp found)
+    return False
+
+def grammar_get_prefixexp(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
+    print("grammar_get_prefixexp <-", caller)
     if code_tokens[code_pointer].value == "\tEOF": return False
 
-    print("Prefix exp", code_tokens[code_pointer])
+    result = try_prefixexp(code_tokens, code_pointer, "prefixexp")
 
-    if code_tokens[code_pointer].value == "(" and code_pointer + 2 < len(code_tokens) - 1:
-        exp_result = grammar_get_exp(code_tokens, code_pointer, call_num + 1)
-        print("Exp result")
-    else:
-        var_result = grammar_get_var(code_tokens, code_pointer, call_num + 1)
-        if var_result == False: return False
+    if result == False: return False
+    return result[0], result[1]
 
-        return var_result[0], var_result[1]
 
+
+
+#############
+# Get <exp> #
+#############
 
 # End of chain
-def grammar_get_exp(code_tokens : list, code_pointer : int, call_num : int):
-    if call_num > max_recursion_depth: return False
+def try_exp_nil(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
+    if code_tokens[code_pointer].value == "nil":
+        return {"type": "exp", "exp_type": TokenType.NIL, "value": "nil"}, 1
+
+    return False
+
+# End of chain
+def try_exp_false(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
+    if code_tokens[code_pointer].value == "false":
+        return {"type": "exp", "exp_type": TokenType.BOOL_LITERAL, "value": "false"}, 1
+
+    return False
+
+# End of chain
+def try_exp_true(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
+    if code_tokens[code_pointer].value == "true":
+        return {"type": "exp", "exp_type": TokenType.BOOL_LITERAL, "value": "true"}, 1
+
+    return False
+
+# End of chain
+def try_exp_number(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
+    if code_tokens[code_pointer].type == TokenType.NUMBER_LITERAL:
+        return {"type": "exp", "exp_type": TokenType.NUMBER_LITERAL, "value": code_tokens[code_pointer].value}, 1
+
+    return False
+
+# End of chain
+def try_exp_string(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
+    if code_tokens[code_pointer].type == TokenType.STRING_LITERAL:
+        return {"type": "exp", "exp_type": TokenType.STRING_LITERAL, "value": code_tokens[code_pointer].value}, 1
+
+    return False
+
+# End of chain
+def try_exp_ellipsis(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
+    if code_tokens[code_pointer].value == "...":
+        return {"type": "exp", "exp_type": TokenType.ELLIPSIS, "value": "..."}, 1
+
+    return False
+
+def try_exp_prefixexp(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
+
+    result = grammar_get_prefixexp(code_tokens, code_pointer, caller)
+
+    if result == False: return False
+    return result[0], result[1]
+
+def try_exp(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
+    # Try all defined statements
+    all_expressions = [
+        try_exp_nil,        # Looks like: "nil"
+        try_exp_false,      # Looks like: "false"
+        try_exp_true,       # Looks like: "true"
+        try_exp_number,     # Looks like: "5" | "3.25"
+        try_exp_string,     # Looks like: '"asd"' (between quotes)
+        try_exp_ellipsis,   # Looks like: "..."
+        try_exp_prefixexp,  # Looks like: <var> | "(" <exp> ")"
+    ]
+
+    # Return with the result
+    for index, expression in enumerate(all_expressions):
+        result = expression(code_tokens, code_pointer, caller)
+        #print("result", result)
+        if result != False: return result
+
+    # Default to failure (no expression found)
+    return False
+
+def grammar_get_exp(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
+    print("grammar_get_exp <-", caller)
     if code_tokens[code_pointer].value == "\tEOF": return False
 
-    if is_expression(code_tokens[code_pointer]):
-        return {"type": "exp", "exp_type": code_tokens[code_pointer].type, "value": code_tokens[code_pointer].value}, 1
-    else:
-        return False
+    result = try_exp(code_tokens, code_pointer, "exp")
+
+    if result == False: return False
+    return result[0], result[1]
+
+
+
+
+#############
+# Get <var> #
+#############
+
+def try_var_name(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
+    if code_tokens[code_pointer].type == TokenType.IDENTIFIER:
+        return {"type": "var", "value": code_tokens[code_pointer].value}
+
+    return False
+
+def try_var_prefix_name(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
+    pass
+
+def try_var(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
+    # Try all defined variables
+    all_vars = [
+        try_var_name,   # Looks like: [a-z][A-Z]*
+        #try_var_prefix_name,
+    ]
+
+    # Return with the result
+    for index, expression in enumerate(all_vars):
+        result = expression(code_tokens, code_pointer, caller)
+        if result != False: return result
+
+    # Default to failure (no var found)
+    return False
+
+def grammar_get_var(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
+    print("grammar_get_var <-", caller)
+    if code_tokens[code_pointer].value == "\tEOF": return False
+
+    result = try_var(code_tokens, code_pointer, caller)
+
+    if result == False: return False
+    return result[0], result[1]
+
+
+
+
+
+
+
+
+
+
 
 def grammar_get_explist(code_tokens : list, code_pointer : int):
     pointer_offset = 0
@@ -470,24 +642,6 @@ def grammar_get_explist(code_tokens : list, code_pointer : int):
 
     return {"type": "explist", "exps": out}, pointer_offset
 
-# End of chain
-def grammar_get_var(code_tokens : list, code_pointer : int, call_num : int):
-    if call_num > max_recursion_depth: return False
-    if code_tokens[code_pointer].value == "\tEOF": return False
-
-    if code_tokens[code_pointer].type == TokenType.IDENTIFIER: # Is Name
-        if code_pointer + 2 < len(code_tokens) - 1 and code_tokens[code_pointer + 1].value == ".":
-            result = grammar_get_prefixexp(code_tokens, code_pointer + 2, call_num + 1)
-            var_name = code_tokens[code_pointer].value + "." + result[0]["value"]
-            return {"type": "var", "value": var_name}, result[1] + 2
-        else:
-            return {"type": "var", "value": code_tokens[code_pointer].value}, 1
-    else: # Not a name
-        result = grammar_get_prefixexp(code_tokens, code_pointer + 2, call_num + 1)
-        print("NOT NAME Result", result)
-
-    return False
-
 def grammar_get_varlist(code_tokens : list, code_pointer : int):
     pointer_offset = 0
     out = []
@@ -510,7 +664,7 @@ def grammar_get_varlist(code_tokens : list, code_pointer : int):
             else:
                 break
         else:
-            result = grammar_get_var(code_tokens, code_pointer + pointer_offset, 0)
+            result = grammar_get_var(code_tokens, code_pointer + pointer_offset, "varlist")
 
             if result == False:
                 log(f"Invalid var detected! {token.place}", "error")
@@ -646,65 +800,66 @@ def model(code_pre_tokens : list) -> list:
 ## Tokenising (preparing compilation) ##
 ########################################
 
-print(f"--- Tokenizing: {AQUA}{sys.argv[1]}{WHITE}")
+if __name__ == "__main__":
+    print(f"--- Tokenizing: {AQUA}{sys.argv[1]}{WHITE}")
 
-tokens = []
+    tokens = []
 
-try:
-    with open(sys.argv[1], "r", encoding="utf8") as f:
-        code_string = f.read()
+    try:
+        with open(sys.argv[1], "r", encoding="utf8") as f:
+            code_string = f.read()
 
-        normalised_code = normalise(code_string)
-        pre_tokens = pre_tokenise(normalised_code)
-        print()
-        tokens = model(pre_tokens)
+            normalised_code = normalise(code_string)
+            pre_tokens = pre_tokenise(normalised_code)
+            print()
+            tokens = model(pre_tokens)
 
-        print_logs()
+            print_logs()
 
-except FileNotFoundError as e:
-    print(f"{RED}File not found!{WHITE}")
-    exit()
+    except FileNotFoundError as e:
+        print(f"{RED}File not found!{WHITE}")
+        exit()
 
-print("\nModel:")
+    print("\nModel:")
 
-pp = pprint.PrettyPrinter(width=41, compact=True)
-pp.pprint(tokens)
+    pp = pprint.PrettyPrinter(width=41, compact=True)
+    pp.pprint(tokens)
 
-if tokens:
-    for token in tokens:
-        print(token)
+    if tokens:
+        for token in tokens:
+            print(token)
 
-#for line in tokens:
-#    for token in line:
-#        print(token, end=" ")
-#    print("\n")
+    #for line in tokens:
+    #    for token in line:
+    #        print(token, end=" ")
+    #    print("\n")
 
 
-###############
-## Compiling ##
-###############
+    ###############
+    ## Compiling ##
+    ###############
 
-print(f"--- Compiling: {AQUA}{sys.argv[1]}{WHITE}")
+    print(f"--- Compiling: {AQUA}{sys.argv[1]}{WHITE}")
 
-#Writing to file
-def path_leaf(path):
-    head, tail = os.path.split(path)
-    return tail or os.basename(head)
+    #Writing to file
+    def path_leaf(path):
+        head, tail = os.path.split(path)
+        return tail or os.basename(head)
 
-def give_new_type(full_file_path, new_type):
-    return ".".join(path_leaf(full_file_path).split(".")[0:-1]) + new_type
+    def give_new_type(full_file_path, new_type):
+        return ".".join(path_leaf(full_file_path).split(".")[0:-1]) + new_type
 
-save_path = "./programs/" if os.path.exists("./programs/") else "./"
-save_name = give_new_type(sys.argv[1], ".asm")
+    save_path = "./programs/" if os.path.exists("./programs/") else "./"
+    save_name = give_new_type(sys.argv[1], ".asm")
 
-if arguments.output_path: save_path = arguments.output_path
-if arguments.file_name: save_name = give_new_type(arguments.file_name + ".D", ".asm")
+    if arguments.output_path: save_path = arguments.output_path
+    if arguments.file_name: save_name = give_new_type(arguments.file_name + ".D", ".asm")
 
-#f = open(save_path + save_name, "w", encoding="utf8")
+    #f = open(save_path + save_name, "w", encoding="utf8")
 
-print(f"--- Writing to: {AQUA}{os.path.join(save_path, save_name)}{WHITE}")
-#for i,ins in enumerate(out[::2]):
-    #print(f"{AQUA}{ins}\t{WHITE}{out[i*2+1]}\t({AQUA}{command_lookup[int(ins)]}{WHITE})")
-#    f.write(f"{ins},{out[i*2+1]}{';' if i*2+2 < len(out) else ''}")
+    print(f"--- Writing to: {AQUA}{os.path.join(save_path, save_name)}{WHITE}")
+    #for i,ins in enumerate(out[::2]):
+        #print(f"{AQUA}{ins}\t{WHITE}{out[i*2+1]}\t({AQUA}{command_lookup[int(ins)]}{WHITE})")
+    #    f.write(f"{ins},{out[i*2+1]}{';' if i*2+2 < len(out) else ''}")
 
-#f.close()
+    #f.close()
