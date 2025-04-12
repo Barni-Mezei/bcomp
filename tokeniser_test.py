@@ -34,8 +34,8 @@ def test_exp(code : str, expected_result):
         if tokens == False: print(f"{RED}False{WHITE}")
         else: print(tokens)
 
-    if expected_result == "error":
-        if tokens == False:
+    if tokens == False:
+        if expected_result == "error":
             test_pass()
         else:
             test_fail()
@@ -70,8 +70,8 @@ def test_var(code : str, expected_result):
         if tokens == False: print(f"{RED}False{WHITE}")
         else: print(tokens)
 
-    if expected_result == "error":
-        if tokens == False:
+    if tokens == False:
+        if expected_result == "error":
             test_pass()
         else:
             test_fail()
@@ -97,7 +97,7 @@ def test_var(code : str, expected_result):
 # 0: Only results
 # 1: Reults and states
 # 2: Everything
-log_level = 2
+log_level = 0
 
 max_tests = 0
 completed_tests = 0
@@ -106,42 +106,46 @@ completed_tests = 0
 # Tests #
 #########
 
-#test_exp("5", tokeniser.TokenType.NUMBER_LITERAL)
-#test_exp("5.", tokeniser.TokenType.NUMBER_LITERAL)
-#test_exp(".5", tokeniser.TokenType.NUMBER_LITERAL)
-test_exp(".. .5.", "error")
-#test_exp("5.0", tokeniser.TokenType.NUMBER_LITERAL)
-#test_exp("0.5", tokeniser.TokenType.NUMBER_LITERAL)
-#test_exp("e4", tokeniser.TokenType.IDENTIFIER)
-#test_exp("4e", "error")
-#test_exp("4e6", tokeniser.TokenType.NUMBER_LITERAL)
-#test_exp("0b", "error")
-#test_exp("0b3", "error")
-#test_exp("0b1", tokeniser.TokenType.NUMBER_LITERAL)
-#test_exp("0x", "error")
-#test_exp("0x0", tokeniser.TokenType.NUMBER_LITERAL)
-#test_exp("0xh", "error")
-#test_exp("0x4f", tokeniser.TokenType.NUMBER_LITERAL)
-#test_exp('"H', "error")
-#test_exp('"H"', tokeniser.TokenType.STRING_LITERAL)
-#test_exp('"Hello!"', tokeniser.TokenType.STRING_LITERAL)
-#test_exp('"56"', tokeniser.TokenType.STRING_LITERAL)
-#test_exp("nil", tokeniser.TokenType.NIL)
-#test_exp("true", tokeniser.TokenType.BOOL_LITERAL)
-#test_exp("false", tokeniser.TokenType.BOOL_LITERAL)
-#test_exp("...", tokeniser.TokenType.ELLIPSIS)
-#test_exp("a", tokeniser.TokenType.IDENTIFIER)
-#test_exp("a.b", tokeniser.TokenType.IDENTIFIER)
+test_exp("5", tokeniser.TokenType.NUMBER_LITERAL)
+test_exp("5.", tokeniser.TokenType.NUMBER_LITERAL)
+test_exp(".5", tokeniser.TokenType.NUMBER_LITERAL)
+test_exp(".5.", tokeniser.TokenType.NUMBER_LITERAL)
+test_exp("5.0", tokeniser.TokenType.NUMBER_LITERAL)
+test_exp("0.5", tokeniser.TokenType.NUMBER_LITERAL)
+test_exp("0..5", tokeniser.TokenType.NUMBER_LITERAL) # 0 .. 5
+test_exp("e4", tokeniser.TokenType.IDENTIFIER)
+test_exp("4e", "error")
+test_exp("4e6", tokeniser.TokenType.NUMBER_LITERAL)
+test_exp("0b", "error")
+test_exp("0b3", "error")
+test_exp("0b1", tokeniser.TokenType.NUMBER_LITERAL)
+test_exp("0x", "error")
+test_exp("0x0", tokeniser.TokenType.NUMBER_LITERAL)
+test_exp("0xh", "error")
+test_exp("0x4f", tokeniser.TokenType.NUMBER_LITERAL)
+test_exp('"H', "error")
+test_exp('"H"', tokeniser.TokenType.STRING_LITERAL)
+test_exp('"Hello!"', tokeniser.TokenType.STRING_LITERAL)
+test_exp('"56"', tokeniser.TokenType.STRING_LITERAL)
+test_exp("nil", tokeniser.TokenType.NIL)
+test_exp("true", tokeniser.TokenType.BOOL_LITERAL)
+test_exp("false", tokeniser.TokenType.BOOL_LITERAL)
+test_exp("...", tokeniser.TokenType.ELLIPSIS)
+test_exp("a", tokeniser.TokenType.IDENTIFIER)
+test_exp("a.b", tokeniser.TokenType.IDENTIFIER)
 
-#test_var("a", "a")
-#test_var("a.b", "a.b")
-#test_var("house.door", "house.door")
-#test_var("house.door.frame", "house.door.frame")
-test_var("house.door.", "error")
-#test_var(".g", "error")
-#test_var(".", "error")
-#test_var("4abc", "error")
-#test_var("abc4_", "abc4_")
+test_var("a", "a")
+test_var("a.b", "a.b")
+test_var("house.door", "house.door")
+test_var("house.door.frame", "house.door.frame")
+test_var("house.door.", "house.door.")
+test_var(".house.door", "error")
+test_var(".house.door.", "error")
+test_var(".g", "error")
+test_var(".", "error")
+test_var("k.l..g", "k.l")
+test_var("4abc", "error")
+test_var("abc4_", "abc4_")
 
 ##############
 # Evaluation #

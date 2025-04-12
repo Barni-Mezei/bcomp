@@ -18,6 +18,9 @@ Made by: Barni - 2025.03.14
 """
 TODO:
 - prefixexp -> functioncall
+- exp -> Numeral -> ".5.4.3." evals to "3.0", so closng "." is stronger. ->basically no invalid numbers.
+- exp -> Numeral -> "5." evals with the wrong place. (col and row)
+- var -> prefixexp . Name -> "a.b." evals to "a.b.", so variable names and access paths must be validated again.
 
 #############################
 #The actually supported BNF #
@@ -292,7 +295,7 @@ def pre_tokenise(code_string : str) -> list:
     out = []
 
     # Multi token patterns, that needs to be combined
-    patterns = ['--', '[[', ']]', '<<', '>>', '//', '==', '~=', '<=', '>=', '..', '...']
+    patterns = ['--', '[[', ']]', '<<', '>>', '//', '==', '~=', '<=', '>=', '...', '..']
 
     index = 0
     while index < len(tmp):
@@ -495,42 +498,42 @@ def grammar_get_prefixexp(code_tokens : list, code_pointer : int, caller : str =
 # End of chain
 def try_exp_nil(code_tokens : list, code_pointer : int, caller = "", recursion_depth = 0):
     if code_tokens[code_pointer].value == "nil":
-        return {"type": "exp", "exp_type": TokenType.NIL, "value": "nil"}, 1
+        return {"type": "exp", "exp_type": TokenType.NIL, "value": "nil", "row": code_tokens[code_pointer].row, "col": code_tokens[code_pointer].col}, 1
 
     return False
 
 # End of chain
 def try_exp_false(code_tokens : list, code_pointer : int, caller = "", recursion_depth = 0):
     if code_tokens[code_pointer].value == "false":
-        return {"type": "exp", "exp_type": TokenType.BOOL_LITERAL, "value": "false"}, 1
+        return {"type": "exp", "exp_type": TokenType.BOOL_LITERAL, "value": "false", "row": code_tokens[code_pointer].row, "col": code_tokens[code_pointer].col}, 1
 
     return False
 
 # End of chain
 def try_exp_true(code_tokens : list, code_pointer : int, caller = "", recursion_depth = 0):
     if code_tokens[code_pointer].value == "true":
-        return {"type": "exp", "exp_type": TokenType.BOOL_LITERAL, "value": "true"}, 1
+        return {"type": "exp", "exp_type": TokenType.BOOL_LITERAL, "value": "true", "row": code_tokens[code_pointer].row, "col": code_tokens[code_pointer].col}, 1
 
     return False
 
 # End of chain
 def try_exp_number(code_tokens : list, code_pointer : int, caller = "", recursion_depth = 0):
     if code_tokens[code_pointer].type == TokenType.NUMBER_LITERAL:
-        return {"type": "exp", "exp_type": TokenType.NUMBER_LITERAL, "value": code_tokens[code_pointer].value}, 1
+        return {"type": "exp", "exp_type": TokenType.NUMBER_LITERAL, "value": code_tokens[code_pointer].value, "row": code_tokens[code_pointer].row, "col": code_tokens[code_pointer].col}, 1
 
     return False
 
 # End of chain
 def try_exp_string(code_tokens : list, code_pointer : int, caller = "", recursion_depth = 0):
     if code_tokens[code_pointer].type == TokenType.STRING_LITERAL:
-        return {"type": "exp", "exp_type": TokenType.STRING_LITERAL, "value": code_tokens[code_pointer].value}, 1
+        return {"type": "exp", "exp_type": TokenType.STRING_LITERAL, "value": code_tokens[code_pointer].value, "row": code_tokens[code_pointer].row, "col": code_tokens[code_pointer].col}, 1
 
     return False
 
 # End of chain
 def try_exp_ellipsis(code_tokens : list, code_pointer : int, caller = "", recursion_depth = 0):
     if code_tokens[code_pointer].value == "...":
-        return {"type": "exp", "exp_type": TokenType.ELLIPSIS, "value": "..."}, 1
+        return {"type": "exp", "exp_type": TokenType.ELLIPSIS, "value": "...", "row": code_tokens[code_pointer].row, "col": code_tokens[code_pointer].col}, 1
 
     return False
 
@@ -579,7 +582,7 @@ def grammar_get_exp(code_tokens : list, code_pointer : int, caller : str = "", r
 
 def try_var_name(code_tokens : list, code_pointer : int, caller = "", recursion_depth = 0):
     if code_tokens[code_pointer].type == TokenType.IDENTIFIER:
-        return {"type": "var", "value": code_tokens[code_pointer].value}, 1
+        return {"type": "var", "value": code_tokens[code_pointer].value, "row": code_tokens[code_pointer].row, "col": code_tokens[code_pointer].col}, 1
 
     return False
 
@@ -589,19 +592,25 @@ def try_var_prefix_name(code_tokens : list, code_pointer : int, caller = "", rec
     result = grammar_get_prefixexp(code_tokens, code_pointer, "var", recursion_depth)
     if result == False: return False
 
-    if len(code_tokens) >= 3 and code_tokens[code_pointer + 1].value == "." and code_tokens[code_pointer + 2].type == TokenType.IDENTIFIER:
-        # Combine actual token values
+    if len(code_tokens) >= 3 and code_tokens[code_pointer + 1].value == ".":
         top = code_tokens.pop(code_pointer)
         mid = code_tokens.pop(code_pointer)
         bottom = code_tokens.pop(code_pointer)
-        new_token = Token(TokenType.IDENTIFIER, top.value + mid.value + bottom.value, bottom.row, bottom.col)
+
+        if bottom.type != TokenType.IDENTIFIER:
+            code_tokens.append(bottom)
+            bottom = Token()
+
+        new_token = Token(TokenType.IDENTIFIER, top.value + mid.value + bottom.value, top.row, top.col)
 
         #print("Top:", top, "mid", mid, "bottom", bottom)
         #print("New token:", new_token)
 
         code_tokens.insert(code_pointer, new_token)
 
-        return {"type": "var", "value": code_tokens[code_pointer].value}, 1
+        #print_tokens(code_tokens)
+
+        return {"type": "var", "value": code_tokens[code_pointer].value, "row": code_tokens[code_pointer].row, "col": code_tokens[code_pointer].col}, 1
 
     return False
 
