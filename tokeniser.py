@@ -165,7 +165,7 @@ class Token:
             case TokenType.EXPRESSION_END: text_color = WHITE
             case TokenType.SPECIAL: text_color = RED
 
-        return f"{text_color}{str(self.type).split('.')[1]:<20}{WHITE}{self.place:<15}{RED + self.value.replace(chr(9), '') + WHITE if self.type == TokenType.SPECIAL else repr(self.value)}"
+        return f"{text_color}{str(self.type).split('.')[1]:<20}{WHITE}{self.place:<15}{(GREEN if self.value == '\tSOF' else RED) + self.value.replace(chr(9), '') + WHITE if self.type == TokenType.SPECIAL else repr(self.value)}"
 
 def print_tokens(token_list : list, title : str = "") -> None:
     if len(token_list) == 0: return
@@ -292,7 +292,7 @@ def pre_tokenise(code_string : str) -> list:
     out = []
 
     # Multi token patterns, that needs to be combined
-    patterns = ['--', '[[', ']]', '<<', '>>', '//', '==', '~=', '<=', '>=', '...']
+    patterns = ['--', '[[', ']]', '<<', '>>', '//', '==', '~=', '<=', '>=', '..', '...']
 
     index = 0
     while index < len(tmp):
@@ -386,11 +386,11 @@ def pre_tokenise(code_string : str) -> list:
                     #print("Number -c-:", f"{curr}")
                     pass
 
-    # Remove start of file separator.
+    # Remove start of file separator (temporary for floats)
     out.pop(0)
 
     # print out constructed tokens, nicely
-    for token in out:
+    """for token in out:
         if token["value"] == "\tEOL":
             print(f"{AQUA}|{WHITE}")
             continue
@@ -403,7 +403,7 @@ def pre_tokenise(code_string : str) -> list:
             print(f"{GREEN}Start of file{WHITE}", end=" ")
             continue
 
-        print(token["value"], end=" ")
+        print(token["value"], end=" ")"""
 
     return out
 
@@ -443,15 +443,6 @@ def is_expression(token : Token, value : str = "") -> bool:
         return is_expression(token) and token.value == value
 
 
-
-
-
-
-
-
-
-
-
 ###################
 # Get <prefixexp> #
 ###################
@@ -469,8 +460,6 @@ def try_prefixexp_exp(code_tokens : list, code_pointer : int, caller = "", recur
 
     if code_tokens[code_pointer].value == "(":
         result = grammar_get_exp(code_tokens, code_pointer, "prefixexp", recursion_depth)
-
-        print("try_prefixexp_exp result:", result)
 
     return False
 
@@ -497,8 +486,6 @@ def grammar_get_prefixexp(code_tokens : list, code_pointer : int, caller : str =
 
     if result == False: return False
     return result[0], result[1]
-
-
 
 
 #############
@@ -586,8 +573,6 @@ def grammar_get_exp(code_tokens : list, code_pointer : int, caller : str = "", r
     return result[0], result[1]
 
 
-
-
 #############
 # Get <var> #
 #############
@@ -615,8 +600,6 @@ def try_var_prefix_name(code_tokens : list, code_pointer : int, caller = "", rec
         #print("New token:", new_token)
 
         code_tokens.insert(code_pointer, new_token)
-
-        print_tokens(code_tokens)
 
         return {"type": "var", "value": code_tokens[code_pointer].value}, 1
 
@@ -813,7 +796,7 @@ def grammar_chunk(code_tokens : list):
     return grammar_block(code_tokens, 0)
 
 def getTokenType(token : str) -> TokenType:
-    if token == "\tEOL" or token == "\tEOF": return TokenType.SPECIAL
+    if token in ["\tEOL", "\tEOF", "\tSOF"]: return TokenType.SPECIAL
     if token == "nil" or token == "NIL": return TokenType.NIL
     if token == "true" or token == "false": return TokenType.BOOL_LITERAL
     if token == "...": return TokenType.ELLIPSIS

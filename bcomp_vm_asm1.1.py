@@ -1,7 +1,7 @@
 import sys
 from lib.lib import *
 import lib.matrixLib
-import keyboard
+import keyboard # type: ignore
 from time import sleep
 
 
@@ -537,9 +537,9 @@ memory = initialiseMemory()
 #Load commands and construct key lookup table
 print(f"--- Loading {AQUA}commands{WHITE}")
 
-commands = load_commands(False)
-command_lookup = ["" for _ in range(0, 32)]
-for key in commands: command_lookup[int(commands[key][0])] = key
+commands, command_lookup = load_commands(False)
+#command_lookup = ["" for _ in range(0, 32)]
+#for key in commands: command_lookup[int(commands[key][0])] = key
 
 if len(sys.argv) >= 2: loadProgram(sys.argv[1])
 
