@@ -18,9 +18,6 @@ Made by: Barni - 2025.03.14
 """
 TODO:
 - prefixexp -> functioncall
-- BNF recursion problem (var -> prefixexp -> var ...)
-
-- If the first token is a float, it will not combine into one. ['12', '.', '4'] != ['12.4']
 
 #############################
 #The actually supported BNF #
@@ -35,10 +32,10 @@ stat ::=
     varlist '=' explist |
 
 varlist ::= var {',' var}
-var ::= Name | prefixexp? . Name
+var ::= Name | prefixexp . Name
 
 explist ::= exp {',' exp}
-exp ::=  nil | false | true | Numeral | LiteralString | '...' | prefixexp?
+exp ::=  nil | false | true | Numeral | LiteralString | '...' | prefixexp
 
 prefixexp ::= var | '(' exp ')'?
 """
@@ -140,6 +137,14 @@ class Token:
     @property
     def place(self):
         return f"[Ln {str(self._place.row + 1)} Col {str(self._place.col + 1)}]"
+
+    @property
+    def row(self):
+        return self._place.row
+
+    @property
+    def col(self):
+        return self._place.col
 
     def __str__(self):
         text_color = WHITE
@@ -325,6 +330,9 @@ def pre_tokenise(code_string : str) -> list:
 
         out.append(token)
 
+    # Start of file separator (temporary, for float construction)
+    out.insert(0, {"value":"\tSOF", "row": 0, "col": 0})
+
     # End of file separator
     out.append({"value":"\tEOF", "row": line_number, "col": column})
 
@@ -340,12 +348,13 @@ def pre_tokenise(code_string : str) -> list:
 
         out.append(token)
 
-        # End of line separator
-        if getTokenType(token_value) != TokenType.NUMBER_LITERAL:
+        # Skip non-numeral tokens
+        if token_value != "." and getTokenType(token_value) != TokenType.NUMBER_LITERAL:
             continue
 
-        if index - 2 > 0 and index < len(tmp)-1:
-            prev = tmp[index-2]
+        #WARNING: 'index' is already pointing to the next token!
+        if index - 2 >= 0 and index <= len(tmp):
+            prev = tmp[index - 2]
             prev_value = prev["value"]
             next = tmp[index]
             next_value = next["value"]
@@ -377,6 +386,9 @@ def pre_tokenise(code_string : str) -> list:
                     #print("Number -c-:", f"{curr}")
                     pass
 
+    # Remove start of file separator.
+    out.pop(0)
+
     # print out constructed tokens, nicely
     for token in out:
         if token["value"] == "\tEOL":
@@ -387,7 +399,20 @@ def pre_tokenise(code_string : str) -> list:
             print(f"{RED}End of file{WHITE}")
             continue
 
+        if token["value"] == "\tSOF":
+            print(f"{GREEN}Start of file{WHITE}", end=" ")
+            continue
+
         print(token["value"], end=" ")
+
+    return out
+
+def tokenise(code_pre_tokens : list) -> list:
+    out = []
+
+    for index, token in enumerate(code_pre_tokens):
+        new_token = Token(value = token["value"], type = getTokenType(token["value"]), row = token["row"], col = token["col"])
+        out.append(new_token)
 
     return out
 
@@ -431,19 +456,19 @@ def is_expression(token : Token, value : str = "") -> bool:
 # Get <prefixexp> #
 ###################
 
-def try_prefixexp_var(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
-    if caller == "var": return False
+def try_prefixexp_var(code_tokens : list, code_pointer : int, caller = "", recursion_depth = 0):
+    if caller == "var" and recursion_depth >= max_recursion_depth: return False
 
-    result = grammar_get_var(code_tokens, code_pointer, caller)
+    result = grammar_get_var(code_tokens, code_pointer, "prefixexp", recursion_depth)
 
     if result == False: return False
     return result[0], result[1]
 
-def try_prefixexp_exp(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
-    if caller == "exp": return False
+def try_prefixexp_exp(code_tokens : list, code_pointer : int, caller = "", recursion_depth = 0):
+    if caller == "exp" and recursion_depth >= max_recursion_depth: return False
 
     if code_tokens[code_pointer].value == "(":
-        result = grammar_get_exp(code_tokens, code_pointer, caller)
+        result = grammar_get_exp(code_tokens, code_pointer, "prefixexp", recursion_depth)
 
         print("try_prefixexp_exp result:", result)
 
@@ -453,22 +478,22 @@ def try_prefixexp(code_tokens : list, code_pointer : int, caller : str = "", rec
     # Try all defined prefixexps
     all_expressions = [
         try_prefixexp_var,  #Looks like: <var>
-        #try_prefixexp_exp,  #Looks like: "(" <exp> ")"
+        #try_prefixexp_exp, #Looks like: "(" <exp> ")"
     ]
 
     # Return with the result
     for index, expression in enumerate(all_expressions):
-        result = expression(code_tokens, code_pointer, caller)
+        result = expression(code_tokens, code_pointer, caller, recursion_depth)
         if result != False: return result
 
     # Default to failure (no prefixexp found)
     return False
 
 def grammar_get_prefixexp(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
-    print("grammar_get_prefixexp <-", caller)
+    #print(caller, "-> grammar_get_prefixexp", recursion_depth)
     if code_tokens[code_pointer].value == "\tEOF": return False
 
-    result = try_prefixexp(code_tokens, code_pointer, "prefixexp")
+    result = try_prefixexp(code_tokens, code_pointer, caller, recursion_depth + 1)
 
     if result == False: return False
     return result[0], result[1]
@@ -481,50 +506,51 @@ def grammar_get_prefixexp(code_tokens : list, code_pointer : int, caller : str =
 #############
 
 # End of chain
-def try_exp_nil(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
+def try_exp_nil(code_tokens : list, code_pointer : int, caller = "", recursion_depth = 0):
     if code_tokens[code_pointer].value == "nil":
         return {"type": "exp", "exp_type": TokenType.NIL, "value": "nil"}, 1
 
     return False
 
 # End of chain
-def try_exp_false(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
+def try_exp_false(code_tokens : list, code_pointer : int, caller = "", recursion_depth = 0):
     if code_tokens[code_pointer].value == "false":
         return {"type": "exp", "exp_type": TokenType.BOOL_LITERAL, "value": "false"}, 1
 
     return False
 
 # End of chain
-def try_exp_true(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
+def try_exp_true(code_tokens : list, code_pointer : int, caller = "", recursion_depth = 0):
     if code_tokens[code_pointer].value == "true":
         return {"type": "exp", "exp_type": TokenType.BOOL_LITERAL, "value": "true"}, 1
 
     return False
 
 # End of chain
-def try_exp_number(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
+def try_exp_number(code_tokens : list, code_pointer : int, caller = "", recursion_depth = 0):
     if code_tokens[code_pointer].type == TokenType.NUMBER_LITERAL:
         return {"type": "exp", "exp_type": TokenType.NUMBER_LITERAL, "value": code_tokens[code_pointer].value}, 1
 
     return False
 
 # End of chain
-def try_exp_string(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
+def try_exp_string(code_tokens : list, code_pointer : int, caller = "", recursion_depth = 0):
     if code_tokens[code_pointer].type == TokenType.STRING_LITERAL:
         return {"type": "exp", "exp_type": TokenType.STRING_LITERAL, "value": code_tokens[code_pointer].value}, 1
 
     return False
 
 # End of chain
-def try_exp_ellipsis(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
+def try_exp_ellipsis(code_tokens : list, code_pointer : int, caller = "", recursion_depth = 0):
     if code_tokens[code_pointer].value == "...":
         return {"type": "exp", "exp_type": TokenType.ELLIPSIS, "value": "..."}, 1
 
     return False
 
-def try_exp_prefixexp(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
+def try_exp_prefixexp(code_tokens : list, code_pointer : int, caller = "", recursion_depth = 0):
+    if caller == "prefixexp" and recursion_depth >= max_recursion_depth: return False
 
-    result = grammar_get_prefixexp(code_tokens, code_pointer, caller)
+    result = grammar_get_prefixexp(code_tokens, code_pointer, "exp", recursion_depth)
 
     if result == False: return False
     return result[0], result[1]
@@ -543,7 +569,7 @@ def try_exp(code_tokens : list, code_pointer : int, caller : str = "", recursion
 
     # Return with the result
     for index, expression in enumerate(all_expressions):
-        result = expression(code_tokens, code_pointer, caller)
+        result = expression(code_tokens, code_pointer, caller, recursion_depth)
         #print("result", result)
         if result != False: return result
 
@@ -551,10 +577,10 @@ def try_exp(code_tokens : list, code_pointer : int, caller : str = "", recursion
     return False
 
 def grammar_get_exp(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
-    print("grammar_get_exp <-", caller)
+    #print(caller, "-> grammar_get_exp", recursion_depth)
     if code_tokens[code_pointer].value == "\tEOF": return False
 
-    result = try_exp(code_tokens, code_pointer, "exp")
+    result = try_exp(code_tokens, code_pointer, caller, recursion_depth + 1)
 
     if result == False: return False
     return result[0], result[1]
@@ -566,35 +592,56 @@ def grammar_get_exp(code_tokens : list, code_pointer : int, caller : str = "", r
 # Get <var> #
 #############
 
-def try_var_name(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
+def try_var_name(code_tokens : list, code_pointer : int, caller = "", recursion_depth = 0):
     if code_tokens[code_pointer].type == TokenType.IDENTIFIER:
-        return {"type": "var", "value": code_tokens[code_pointer].value}
+        return {"type": "var", "value": code_tokens[code_pointer].value}, 1
 
     return False
 
-def try_var_prefix_name(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
-    pass
+def try_var_prefix_name(code_tokens : list, code_pointer : int, caller = "", recursion_depth = 0):
+    if caller == "prefixexp" and recursion_depth >= max_recursion_depth: return False
+
+    result = grammar_get_prefixexp(code_tokens, code_pointer, "var", recursion_depth)
+    if result == False: return False
+
+    if len(code_tokens) >= 3 and code_tokens[code_pointer + 1].value == "." and code_tokens[code_pointer + 2].type == TokenType.IDENTIFIER:
+        # Combine actual token values
+        top = code_tokens.pop(code_pointer)
+        mid = code_tokens.pop(code_pointer)
+        bottom = code_tokens.pop(code_pointer)
+        new_token = Token(TokenType.IDENTIFIER, top.value + mid.value + bottom.value, bottom.row, bottom.col)
+
+        #print("Top:", top, "mid", mid, "bottom", bottom)
+        #print("New token:", new_token)
+
+        code_tokens.insert(code_pointer, new_token)
+
+        print_tokens(code_tokens)
+
+        return {"type": "var", "value": code_tokens[code_pointer].value}, 1
+
+    return False
 
 def try_var(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
     # Try all defined variables
     all_vars = [
-        try_var_name,   # Looks like: [a-z][A-Z]*
-        #try_var_prefix_name,
+        try_var_prefix_name,    # Looks like: <prefiexp> "." [a-z][A-Z]
+        try_var_name,           # Looks like: [a-z][A-Z]*
     ]
 
     # Return with the result
     for index, expression in enumerate(all_vars):
-        result = expression(code_tokens, code_pointer, caller)
+        result = expression(code_tokens, code_pointer, caller, recursion_depth)
         if result != False: return result
 
     # Default to failure (no var found)
     return False
 
 def grammar_get_var(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
-    print("grammar_get_var <-", caller)
+    #print(caller, "-> grammar_get_var", recursion_depth)
     if code_tokens[code_pointer].value == "\tEOF": return False
 
-    result = try_var(code_tokens, code_pointer, caller)
+    result = try_var(code_tokens, code_pointer, caller, recursion_depth + 1)
 
     if result == False: return False
     return result[0], result[1]
@@ -773,28 +820,19 @@ def getTokenType(token : str) -> TokenType:
     if token in KEYWORDS: return TokenType.KEYWORD
     if token in OPERATORS: return TokenType.OPERATOR
     if re.search("^\".*\"|\'.*\'$", token): return TokenType.STRING_LITERAL
-    if re.search("^(?:[0-9_]*[\\.eE]?[0-9_]*|0[xX][0-9a-fA-F]+|0[bB][01]+)$", token): return TokenType.NUMBER_LITERAL
+    if re.search("^(?:(?:(?:[0-9_]+\\.)|(?:\\.[0-9_]+)|(?:[0-9_]+\\.[0-9_]+)|(?:[0-9_]+)|(?:[0-9_]+[eE][0-9_]+))|0[xX][0-9a-fA-F]+|0[bB][01]+)$", token): return TokenType.NUMBER_LITERAL
     if re.search("^[a-zA-Z_]\\w*$", token): return TokenType.IDENTIFIER
     if token in "({[": return TokenType.EXPRESSION_START
     if token in ")}]": return TokenType.EXPRESSION_END
 
     return TokenType.UNKNOWN
 
-def model(code_pre_tokens : list) -> list:
-    out = []
-
-    for index, token in enumerate(code_pre_tokens):
-        new_token = Token(row = token["row"], col = token["col"])
-        new_token.fromString(token["value"])
-        print(new_token)
-        out.append(new_token)
-
+def model(code_tokens : list) -> list:
     #pp = pprint.PrettyPrinter(width=41, compact=True)
     #pp.pprint(out)
 
     log_tree = []
-    return grammar_chunk(out)
-    #return []
+    return grammar_chunk(code_tokens)
 
 ########################################
 ## Tokenising (preparing compilation) ##
