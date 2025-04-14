@@ -6,6 +6,17 @@ __log_tree_depth = 0 # Current tree depth
 __log_tree_current_parent = "root"
 __log_tree_print_depth = 0 # The indentation level of the printing
 
+def reset_logs():
+    global log_tree
+    global __log_tree_depth
+    global __log_tree_depth_old
+    global __log_tree_current_parent
+
+    log_tree = []
+    __log_tree_depth = 0
+    __log_tree_depth_old = 0
+    __log_tree_current_parent = "root"
+
 def log_group(title : str) -> None:
     global __log_tree_depth
     __log_tree_depth += 1

@@ -18,17 +18,21 @@ Made by: Barni - 2025.03.14
 """
 TODO:
 - prefixexp -> functioncall
-- exp -> Numeral -> ".5.4.3." evals to "3.0", so closng "." is stronger. ->basically no invalid numbers.
+- prefixexp -> "(" <exp> ")"
+
+BUG:
+- exp -> Numeral -> ".5.4.3." evals to "3.0", so closng "." is stronger. -> basically no invalid numbers.
 - exp -> Numeral -> "5." evals with the wrong place. (col and row)
 - var -> prefixexp . Name -> "a.b." evals to "a.b.", so variable names and access paths must be validated again.
 
-#############################
-#The actually supported BNF #
-#############################
+NOTE:
+###############################
+# The currently supported BNF #
+###############################
 
 chunk ::= block
 
-block ::= {stat}
+block ::= stat
 
 stat ::=
     ';' | 
@@ -40,7 +44,7 @@ var ::= Name | prefixexp . Name
 explist ::= exp {',' exp}
 exp ::=  nil | false | true | Numeral | LiteralString | '...' | prefixexp
 
-prefixexp ::= var | '(' exp ')'?
+prefixexp ::= var
 """
 
 import sys
@@ -445,6 +449,21 @@ def is_expression(token : Token, value : str = "") -> bool:
     else:
         return is_expression(token) and token.value == value
 
+def getTokenType(token : str) -> TokenType:
+    if token in ["\tEOL", "\tEOF", "\tSOF"]: return TokenType.SPECIAL
+    if token == "nil" or token == "NIL": return TokenType.NIL
+    if token == "true" or token == "false": return TokenType.BOOL_LITERAL
+    if token == "...": return TokenType.ELLIPSIS
+    if token in KEYWORDS: return TokenType.KEYWORD
+    if token in OPERATORS: return TokenType.OPERATOR
+    if re.search("^\".*\"|\'.*\'$", token): return TokenType.STRING_LITERAL
+    if re.search("^(?:(?:(?:[0-9_]+\\.)|(?:\\.[0-9_]+)|(?:[0-9_]+\\.[0-9_]+)|(?:[0-9_]+)|(?:[0-9_]+[eE][0-9_]+))|0[xX][0-9a-fA-F]+|0[bB][01]+)$", token): return TokenType.NUMBER_LITERAL
+    if re.search("^[a-zA-Z_]\\w*$", token): return TokenType.IDENTIFIER
+    if token in "({[": return TokenType.EXPRESSION_START
+    if token in ")}]": return TokenType.EXPRESSION_END
+
+    return TokenType.UNKNOWN
+
 
 ###################
 # Get <prefixexp> #
@@ -483,7 +502,7 @@ def try_prefixexp(code_tokens : list, code_pointer : int, caller : str = "", rec
 
 def grammar_get_prefixexp(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
     #print(caller, "-> grammar_get_prefixexp", recursion_depth)
-    if code_tokens[code_pointer].value == "\tEOF": return False
+    if code_pointer < len(code_tokens) and code_tokens[code_pointer].value == "\tEOF": return False
 
     result = try_prefixexp(code_tokens, code_pointer, caller, recursion_depth + 1)
 
@@ -568,7 +587,7 @@ def try_exp(code_tokens : list, code_pointer : int, caller : str = "", recursion
 
 def grammar_get_exp(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
     #print(caller, "-> grammar_get_exp", recursion_depth)
-    if code_tokens[code_pointer].value == "\tEOF": return False
+    if code_pointer < len(code_tokens) and code_tokens[code_pointer].value == "\tEOF": return False
 
     result = try_exp(code_tokens, code_pointer, caller, recursion_depth + 1)
 
@@ -631,7 +650,7 @@ def try_var(code_tokens : list, code_pointer : int, caller : str = "", recursion
 
 def grammar_get_var(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
     #print(caller, "-> grammar_get_var", recursion_depth)
-    if code_tokens[code_pointer].value == "\tEOF": return False
+    if code_pointer < len(code_tokens) and code_tokens[code_pointer].value == "\tEOF": return False
 
     result = try_var(code_tokens, code_pointer, caller, recursion_depth + 1)
 
@@ -639,22 +658,20 @@ def grammar_get_var(code_tokens : list, code_pointer : int, caller : str = "", r
     return result[0], result[1]
 
 
+#################
+# Get <explist> #
+#################
 
+def grammar_get_explist(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
+    #print(caller, "-> grammar_get_explist", recursion_depth)
+    if code_pointer < len(code_tokens) and code_tokens[code_pointer].value == "\tEOF": return False
 
-
-
-
-
-
-
-
-def grammar_get_explist(code_tokens : list, code_pointer : int):
     pointer_offset = 0
     out = []
 
-    if not is_expression(code_tokens[code_pointer]):
-        log(f"Explist starts with the wrong type! {code_tokens[code_pointer].place}", "error")
-        return False
+    #if not is_expression(code_tokens[code_pointer]):
+    #    log(f"Explist starts with the wrong type! {code_tokens[code_pointer].place}", "error")
+    #    return False
 
     expected_separator = False
     iter = 0
@@ -669,7 +686,7 @@ def grammar_get_explist(code_tokens : list, code_pointer : int):
             else:
                 break
         else:
-            result = grammar_get_exp(code_tokens, code_pointer + pointer_offset, 0)
+            result = grammar_get_exp(code_tokens, code_pointer + pointer_offset, "explist", recursion_depth + 1)
 
             if result == False:
                 log(f"Invalid exp detected! {token.place}", "error")
@@ -681,13 +698,21 @@ def grammar_get_explist(code_tokens : list, code_pointer : int):
 
     return {"type": "explist", "exps": out}, pointer_offset
 
-def grammar_get_varlist(code_tokens : list, code_pointer : int):
+
+#################
+# Get <varlist> #
+#################
+
+def grammar_get_varlist(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
+    #print(caller, "-> grammar_get_varlist", recursion_depth)
+    if code_pointer < len(code_tokens) and code_tokens[code_pointer].value == "\tEOF": return False
+
     pointer_offset = 0
     out = []
 
-    if code_tokens[code_pointer].type != TokenType.IDENTIFIER and code_tokens[code_pointer].value != "(":
-        log(f"Varlist starts with the wrong type! {code_tokens[code_pointer].place}", "error")
-        return False
+    #if code_tokens[code_pointer].type != TokenType.IDENTIFIER and code_tokens[code_pointer].value != "(":
+    #    log(f"Varlist starts with the wrong type! {code_tokens[code_pointer].place}", "error")
+    #    return False
 
 
     expected_separator = False
@@ -703,7 +728,7 @@ def grammar_get_varlist(code_tokens : list, code_pointer : int):
             else:
                 break
         else:
-            result = grammar_get_var(code_tokens, code_pointer + pointer_offset, "varlist")
+            result = grammar_get_var(code_tokens, code_pointer + pointer_offset, "varlist", recursion_depth + 1)
 
             if result == False:
                 log(f"Invalid var detected! {token.place}", "error")
@@ -715,13 +740,15 @@ def grammar_get_varlist(code_tokens : list, code_pointer : int):
 
     return {"type": "varlist", "vars": out}, pointer_offset
 
-def try_statement_assignment(code_tokens : list, code_pointer : int):    
+###################
+# Get <statement> #
+###################
+
+def try_statement_assignment(code_tokens : list, code_pointer : int, caller = "", recursion_depth = 0):    
     log_group("Varlist")
     result_varlist = grammar_get_varlist(code_tokens, code_pointer)
     log_group_end()
     if result_varlist == False: return False
-
-    print("varlist", result_varlist)
 
     pointer_offset = result_varlist[1]
 
@@ -730,42 +757,50 @@ def try_statement_assignment(code_tokens : list, code_pointer : int):
     log_group_end()
     if result_explist == False: return False
 
+    print("EXPLIST", result_explist)
+
     pointer_offset += result_explist[1] + 1
 
-    return {"type": "assignment", "varlist": result_varlist[0], "explist": result_explist[0]}, code_pointer + pointer_offset
+    return {"type": "stytement", "stat_type": "assignment", "varlist": result_varlist[0], "explist": result_explist[0]}, code_pointer + pointer_offset
 
-def try_statement_semicolon(code_tokens : list, code_pointer : int):
-    success = False
-
-    log_group("Semicolon")
-    if len(code_tokens) == 0:
-        log("No semicolon found!", "error")
-        success = False
-
+def try_statement_semicolon(code_tokens : list, code_pointer : int, caller = "", recursion_depth = 0):
     if code_tokens[code_pointer].value == ";":
-        success = True
+        return {"type": "statement", "stat_type": "semicolon", "value": ";", "row": code_tokens[code_pointer].row, "col": code_tokens[code_pointer].col}, 1
 
-    log_group_end()
-    if success == False: return False
+    return False
 
-    return {"type": "semicolon"}, 1
-
-def try_statement(code_tokens : list, code_pointer : int):
+def try_statement(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
     # Try all defined statements
     all_statements = [
         try_statement_semicolon, # Looks like: ";"
         try_statement_assignment, # Looks like: "a.k, b = 'test', 8"
     ]
 
-    # Return with the result
+    # Return with the first result
     for index, statement in enumerate(all_statements):
-        result = statement(code_tokens, code_pointer)
+        result = statement(code_tokens, code_pointer, caller, recursion_depth + 1)
         if result != False: return result
 
     # Default to failure (no statement found)
-    return False, 0
+    return False
 
-def grammar_statement(code_tokens : list, code_pointer : int):
+def grammar_get_statement(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
+    #print(caller, "-> grammar_get_exp", recursion_depth)
+    if code_pointer < len(code_tokens) and code_tokens[code_pointer].value == "\tEOF": return False
+
+    result = try_statement(code_tokens, code_pointer, caller, recursion_depth + 1)
+
+    if result == False: return False
+    return result[0], result[1]
+
+###############
+# Get <block> #
+###############
+
+def try_block_statement(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
+    #print(caller, "-> statement list", recursion_depth)
+    if code_pointer < len(code_tokens) and code_tokens[code_pointer].value == "\tEOF": return False
+
     out = []
 
     pointer_offset = 0
@@ -773,16 +808,13 @@ def grammar_statement(code_tokens : list, code_pointer : int):
     iter = 0
     max_iter = 2
 
-    while iter < max_iter and code_pointer+pointer_offset < len(code_tokens):
+    while iter < max_iter and code_pointer + pointer_offset < len(code_tokens):
         current_token = code_tokens[code_pointer + pointer_offset]
         log_group(f"Single statement ({current_token})")
-        result = try_statement(code_tokens, code_pointer + pointer_offset)
+        result = grammar_get_statement(code_tokens, code_pointer + pointer_offset)
         log_group_end()
 
-        if result == False: return False
-
-        print("Parsed:", result[0])
-        print("Offset:", result[1])
+        if result == False: break
 
         out.append(result[0])
         pointer_offset += result[1]
@@ -792,39 +824,26 @@ def grammar_statement(code_tokens : list, code_pointer : int):
     if iter > max_iter:
         log("Max statement iterations reached!", "error")
 
+    if len(out) == 0: return False
     return out
 
-def grammar_block(code_tokens : list, code_pointer : int):
+def grammar_get_block(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
     log_group("Statement list")
-    result = grammar_statement(code_tokens, 0)
+    result = try_block_statement(code_tokens, 0, "block", recursion_depth)
     log_group_end()
 
     return result
 
-def grammar_chunk(code_tokens : list):
-    return grammar_block(code_tokens, 0)
+###############
+# Get <chunk> #
+###############
 
-def getTokenType(token : str) -> TokenType:
-    if token in ["\tEOL", "\tEOF", "\tSOF"]: return TokenType.SPECIAL
-    if token == "nil" or token == "NIL": return TokenType.NIL
-    if token == "true" or token == "false": return TokenType.BOOL_LITERAL
-    if token == "...": return TokenType.ELLIPSIS
-    if token in KEYWORDS: return TokenType.KEYWORD
-    if token in OPERATORS: return TokenType.OPERATOR
-    if re.search("^\".*\"|\'.*\'$", token): return TokenType.STRING_LITERAL
-    if re.search("^(?:(?:(?:[0-9_]+\\.)|(?:\\.[0-9_]+)|(?:[0-9_]+\\.[0-9_]+)|(?:[0-9_]+)|(?:[0-9_]+[eE][0-9_]+))|0[xX][0-9a-fA-F]+|0[bB][01]+)$", token): return TokenType.NUMBER_LITERAL
-    if re.search("^[a-zA-Z_]\\w*$", token): return TokenType.IDENTIFIER
-    if token in "({[": return TokenType.EXPRESSION_START
-    if token in ")}]": return TokenType.EXPRESSION_END
-
-    return TokenType.UNKNOWN
+def grammar_get_chunk(code_tokens : list):
+    return grammar_get_block(code_tokens, 0)
 
 def model(code_tokens : list) -> list:
-    #pp = pprint.PrettyPrinter(width=41, compact=True)
-    #pp.pprint(out)
-
-    log_tree = []
-    return grammar_chunk(code_tokens)
+    reset_logs()
+    return grammar_get_chunk(code_tokens)
 
 ########################################
 ## Tokenising (preparing compilation) ##
@@ -841,8 +860,9 @@ if __name__ == "__main__":
 
             normalised_code = normalise(code_string)
             pre_tokens = pre_tokenise(normalised_code)
+            token_objects = tokenise(pre_tokens)
             print()
-            tokens = model(pre_tokens)
+            tokens = model(token_objects)
 
             print_logs()
 
