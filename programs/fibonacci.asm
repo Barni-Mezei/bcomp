@@ -1,7 +1,9 @@
+;asm 2.0
+
 $console 0
 
-LDA 1
-LDB 1
+MVA 1
+MVB 1
 
 :loop
 ADD

@@ -9,7 +9,7 @@ WHITE = "\033[0m"
 
 def load_commands(log = False, file_path = "commands.txt") -> dict:
     commands = {}
-    lookup = ["" for _ in range(0, 32)]
+    lookup = ["" for _ in range(0, 64)]
 
     # Get commands
     try:
