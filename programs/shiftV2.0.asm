@@ -1,3 +1,5 @@
+;asm1.1
+
 LDA 1
 OUT 0
 SHL

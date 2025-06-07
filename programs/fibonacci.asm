@@ -1,4 +1,4 @@
-;asm 2.0
+;asm2.0
 
 $console 0
 

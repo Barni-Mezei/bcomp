@@ -1,3 +1,5 @@
+;asm1.1
+
 LDA 2   ; Load 2 numbers
 LDB	4
 ADD     ; Add them (6)

@@ -1,3 +1,5 @@
+;asm2.0
+
 MVA 2   ; Load 2 numbers
 MVB	4
 ADD     ; Add them (6)

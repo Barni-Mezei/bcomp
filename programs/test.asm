@@ -1,4 +1,5 @@
-;asm 2.0
+;asm2.0
+
 $display_control 2
 $display_row 3
 

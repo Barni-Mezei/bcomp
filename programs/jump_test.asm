@@ -1,3 +1,5 @@
+;asm1.1
+
 lda 1
 lda 2
 :label
