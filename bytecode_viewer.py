@@ -42,8 +42,9 @@ try:
 
             mnemonic = command_lookup[int(line[0])]
 
-            if mnemonic in ["jmp", "jsr"]:
+            if mnemonic in ["jmp", "jsr", "jio", "jin", "jic"]:
                 jump_addresses.append({"from": i, "to": int(line[1])})
+
 except FileNotFoundError as e:
     print(f"{RED}File not found!{WHITE}")
     exit()
@@ -79,4 +80,4 @@ with open(sys.argv[1], "r", encoding="utf8") as f:
         formatted_arg = f"({line[1]})" + (" "*(max_arg_len - len(str(line[1])) + 1))
         formatted_jump_line = "".join(jump_characters[i])
 
-        print(f"{WHITE}{i}: {GRAY}{arg} {WHITE}{formatted_arg}{AQUA}{ins} {WHITE}{formatted_ins}{formatted_jump_line} {AQUA}{mnemonic}{WHITE} {line[1]}")
+        print(f"{WHITE}{i:>3}: {GRAY}{arg} {WHITE}{formatted_arg}{AQUA}{ins} {WHITE}{formatted_ins}{formatted_jump_line} {AQUA}{mnemonic}{WHITE} {line[1]}")

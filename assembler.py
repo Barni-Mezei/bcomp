@@ -14,6 +14,7 @@ arg_parser = argparse.ArgumentParser(
 arg_parser.add_argument('input_file', help="The path to your '.asm' file")
 arg_parser.add_argument('-o', '--output-path', help="The path to the directory, that will contain your compiled code")
 arg_parser.add_argument('-f', '--file-name', help="The name of your compiled file. Filetype will be ignored!")
+arg_parser.add_argument('-cpp', '--cpp', default=False, action='store_true', help="Export as C++ array for importing to Arduino")
 
 #Parse command line arguments
 if len(sys.argv[1::]) == 0:
@@ -164,8 +165,23 @@ if arguments.file_name: save_name = give_new_type(arguments.file_name + ".D", ".
 f = open(save_path + save_name, "w", encoding="utf8")
 
 print(f"--- Writing to: {AQUA}{os.path.join(save_path, save_name)}{WHITE}")
-for i,ins in enumerate(out[::2]):
-    #print(f"{AQUA}{ins}\t{WHITE}{out[i*2+1]}\t({AQUA}{command_lookup[int(ins)]}{WHITE})")
-    f.write(f"{ins},{out[i*2+1]}{';' if i*2+2 < len(out) else ''}")
+
+
+if arguments.cpp:
+    # As valid C++ code
+    for i,ins in enumerate(out[::2]):
+        arg = out[i*2+1]
+
+        f.write(f"rom[rom_index  ].ins  = {ins};\n")
+        f.write(f"rom[rom_index++].arg  = {arg};\n")
+
+    f.write(f"rom_length = rom_index;\n")
+    f.write(f"rom_index--;")
+
+else:
+    # As comma separated values
+    for i,ins in enumerate(out[::2]):
+        #print(f"{AQUA}{ins}\t{WHITE}{out[i*2+1]}\t({AQUA}{command_lookup[int(ins)]}{WHITE})")
+        f.write(f"{ins},{out[i*2+1]}{';' if i*2+2 < len(out) else ''}")
 
 f.close()

@@ -25,7 +25,7 @@ swv 23 1
 swa 24 0 
 lda 25 0 
 ldb 26 0 
-sti 27 1 
+stv 27 1 
 sta 28 0 
 stb 29 0 
 cpy 30 0 

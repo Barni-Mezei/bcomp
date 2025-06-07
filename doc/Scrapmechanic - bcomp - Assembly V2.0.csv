@@ -26,7 +26,7 @@ Binary representiation,,,,,,,,Index,Menmonic,Name,Argument,Description,Micro ins
 ,,,,,,,,24,SWA,Set write address,-,Sets the write memory addresses to RA,-
 ,,,,,,,,25,LDA,Load to A,-,Reads the value at the selected read address to RA,-
 ,,,,,,,,26,LDB,Load to B,-,Reads the value at the selected read address to RB,-
-,,,,,,,,27,STI,Save immediate,The value,Writes RARG to the memory at the selected writing address,-
+,,,,,,,,27,STV,Save value,The value,Writes RARG to the memory at the selected writing address,-
 ,,,,,,,,28,STA,Save A,-,Writes RA to the memory at the selected writing address,-
 ,,,,,,,,29,STB,Save B,-,Writes RB to the memory at the selected writing address,-
 ,,,,,,,,30,CPY,Copy in memory,-,Copies the data from the read address to the write address in memory,-

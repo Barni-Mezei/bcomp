@@ -328,15 +328,15 @@ def executeLine(index : int) -> str:
 
         case "lda":
             if local_debug:
-                print(f"- Reading from memory[{registers['radr']}] ({memory[registers['adr']]}) to RA")
+                print(f"- Reading from memory[{registers['radr']}] ({memory[registers['radr']]}) to RA")
             registers['a'] = memory[registers['radr']]
 
         case "ldb":
             if local_debug:
-                print(f"- Reading from memory[{registers['radr']}] ({memory[registers['adr']]}) to RB")
+                print(f"- Reading from memory[{registers['radr']}] ({memory[registers['radr']]}) to RB")
             registers['b'] = memory[registers['radr']]
 
-        case "sti":
+        case "stv":
             if local_debug:
                 print(f"- Writing to memory[{registers['wadr']}] = RARG ({registers['arg']})")
             memory[registers['wadr']] = registers['arg']
@@ -437,40 +437,42 @@ def handleInputDevices(selectedDevice):
         if len(user_in) == 0: user_in = '0'
         ports['input'][selectedDevice][1] = int(user_in)
 
-    if selectedDevice == 2: # Keyboard (letter)
-        user_in = input(f"{GRAY}> {WHITE}")
-        if len(user_in) == 0: user_in = ' '
-        user_in = user_in[0]
-        ports['input'][selectedDevice][1] = ord(user_in)
-
 def handleOutputDevices():
     #Console port[0]
     if ports['output'][0][0]:
-        if debug: print(f"- DEVICE 'Console': Printing value")
+        if debug: print(f"- DEVICE 'Console': Printing value (number)")
         char_code = ports['output'][0][1]
         char = chr(char_code) if char_code >= 32 and char_code <= 127 else ' '
-        print(f"{f'{GRAY}$ ' if result == 'break' else ''}{GRAY}{decToBin(ports['output'][0][1], 16)} {WHITE}{ports['output'][0][1]:>5d} {AQUA}{char}{WHITE}")
+        print(f"{f'{GRAY}$ ' if result == 'break' else ''}{GRAY}{decToBin(ports['output'][0][1], 16)} {WHITE}{ports['output'][0][1]:>5d}{WHITE}")
         ports['output'][0][0] = False
 
-    #Display command port[1]
+    #Console port[1]
     if ports['output'][1][0]:
+        if debug: print(f"- DEVICE 'Console': Printing value (character)")
+        char_code = ports['output'][1][1]
+        char = chr(char_code) if char_code >= 32 and char_code <= 127 else ' '
+        print(char, end="")
+        ports['output'][1][0] = False
+
+    #Display command port[2]
+    if ports['output'][2][0]:
         #Command mode
-        if decToBin(ports['output'][1][1], 16)[0] == "1":
+        if decToBin(ports['output'][2][1], 16)[0] == "1":
             if debug: print(f"- DEVICE 'Display': Command mode")
-            if decToBin(ports['output'][1][1], 16)[1] == "1": #0b11000000_00000000 -> flush
+            if decToBin(ports['output'][2][1], 16)[1] == "1": #0b11000000_00000000 -> flush
                 if debug: print(f"  Flush")
                 lib.matrixLib.renderMatrix(devices['display']['matrix'], ".#")
         else:
             #Row index mode
-            if debug: print(f"- DEVICE 'Display': Row index mode ({trimToSize(ports['output'][1][1], 4)})")
-            devices['display']['row_index'] = trimToSize(ports['output'][1][1], 4)
-        ports['output'][1][0] = False
-
-    #Display row data port[2]
-    if ports['output'][2][0]:
-        if debug: print(f"- DEVICE 'Display': Writing row: {decToBin(ports['output'][2][1], 16)}")
-        devices['display']['matrix'][devices['display']['row_index']] = [int(b) for b in decToBin(ports['output'][2][1], 16)]
+            if debug: print(f"- DEVICE 'Display': Row index mode ({trimToSize(ports['output'][2][1], 4)})")
+            devices['display']['row_index'] = trimToSize(ports['output'][2][1], 4)
         ports['output'][2][0] = False
+
+    #Display row data port[3]
+    if ports['output'][3][0]:
+        if debug: print(f"- DEVICE 'Display': Writing row: {decToBin(ports['output'][3][1], 16)}")
+        devices['display']['matrix'][devices['display']['row_index']] = [int(b) for b in decToBin(ports['output'][3][1], 16)]
+        ports['output'][3][0] = False
 
 ###############################
 ## Built-in console commands ##
@@ -528,10 +530,10 @@ def commandDumpReg():
 
 def commandDumpPort():
     print(       f"{AQUA}Input ports:             Output ports:")
-    print(f"{GRAY}0: {WHITE}Keyboard              Console            {GRAY}Keyboard: 2 bytes, with each bit representing a pressed key{WHITE}")
-    print(f"{GRAY}1: {WHITE}Number input          Display commands   {GRAY}Number input: Waits for a number to be inputted. Stalls execution!{WHITE}")
-    print(f"{GRAY}2: {WHITE}Letter input          Display row data   {GRAY}Letter input: Waits for a letter to be inputted. Stalls execution!{WHITE}")
-    print(f"{GRAY}3: {WHITE}-                     -")
+    print(f"{GRAY}0: {WHITE}Keyboard              Console (number)    {GRAY}(with new line){WHITE}")
+    print(f"{GRAY}1: {WHITE}Number input          Console (character) {GRAY}(without new line){WHITE}")
+    print(f"{GRAY}2: {WHITE}                      Display commands")
+    print(f"{GRAY}3: {WHITE}-                     Display row data")
     print(f"{GRAY}4: {WHITE}-                     -")
     print(f"{GRAY}5: {WHITE}-                     -")
     print(f"{GRAY}6: {WHITE}-                     -")
