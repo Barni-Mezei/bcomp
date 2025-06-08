@@ -172,11 +172,13 @@ if arguments.cpp:
     for i,ins in enumerate(out[::2]):
         arg = out[i*2+1]
 
-        f.write(f"rom[rom_index  ].ins  = {ins};\n")
-        f.write(f"rom[rom_index++].arg  = {arg};\n")
+        f.write("{" + str(ins) + "," + str(arg) + "},\n")
 
-    f.write(f"rom_length = rom_index;\n")
-    f.write(f"rom_index--;")
+        #f.write(f"rom[rom_index  ].ins  = {ins};\n")
+        #f.write(f"rom[rom_index++].arg  = {arg};\n")
+
+    #f.write(f"rom_length = rom_index;\n")
+    #f.write(f"rom_index--;")
 
 else:
     # As comma separated values

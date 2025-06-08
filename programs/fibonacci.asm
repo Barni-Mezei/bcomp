@@ -1,6 +1,6 @@
 ;asm2.0
 
-$console 0
+$console 1
 
 MVA 1
 MVB 1

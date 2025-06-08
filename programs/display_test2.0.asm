@@ -7,9 +7,9 @@
 $i 0
 $row 1
 
-$console 0
-$display_control 2
-$display_row 3
+$console 1
+$display_control 3
+$display_row 4
 
 ;-------------------;
 ; Initialise memory ;
