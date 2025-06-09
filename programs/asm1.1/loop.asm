@@ -1,4 +1,4 @@
-;asm1.1
+;asm  1.1
 
 adr 0
 ldi 10  ; Iteration count to memory[0] (needs to be 1 bigger than the desired amount)

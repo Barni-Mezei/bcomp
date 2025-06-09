@@ -1,4 +1,4 @@
-;asm1.1
+;asm 1.1
 
 ;------------------;
 ; Create constants ;
@@ -33,6 +33,11 @@ $letter_z 122
 $space 32
 $line 95
 $dash 45
+
+$mask_up 0b10000000_00000000
+$mask_left 0b01000000_00000000
+$mask_down 0b00100000_00000000
+$mask_right 0b00010000_00000000
 
 ; Output ports
 $port_console 0
@@ -137,22 +142,12 @@ ldi 0b11111111_11111111
 ; Main program ;
 ;--------------;
 
-:loop   ; Loop uses memory[0] as iteration counter
-adr $i  ; Load iteration counter
-mov
-ldb 1   ; Iteration decrease amount
-sub     ; Decrease iteration counter
-mca
-jio :loop_end
-str     ; Save iteration counter
+:loop
 
-; Loop content
 jsr :loop_body
+;nop
 
 jmp :loop
-:loop_end
-
-hlt
 
 ;-------;
 ; Jumps ;
@@ -161,34 +156,57 @@ hlt
 
 ; Read user input (and store it to memory[255])
 adr 255
-inp $port_letter
+inp $port_keyboard
 mac
 str
 ;out $port_console
 
-ldb $letter_w
-jsr :is_equal
+; Check if W is pressed
+adr 255
+mov
+ldb $mask_up
+and
+mca
+ldb 0
+jsr :is_not_equal
 jio :pressed_up
+:after_press_up
 
-mov ; Load back user input from meory
-ldb $letter_a
-jsr :is_equal
+; Check if A is pressed
+adr 255
+mov
+ldb $mask_left
+and
+mca
+ldb 0
+jsr :is_not_equal
 jio :pressed_left
+:after_press_left
 
-mov  ; Load back user input from meory
-ldb $letter_s
-jsr :is_equal
+; Check if S is pressed
+adr 255
+mov
+ldb $mask_down
+and
+mca
+ldb 0
+jsr :is_not_equal
 jio :pressed_down
+:after_press_down
 
-mov  ; Load back user input from meory
-ldb $letter_d
-jsr :is_equal
+; Check if D is pressed
+adr 255
+mov
+ldb $mask_right
+and
+mca
+ldb 0
+jsr :is_not_equal
 jio :pressed_right
+:after_press_right
 
 ;lda $dash
 ;out $port_console
-
-:after_keypress
 
 ; Print player coordinates
 ;lda $letter_x
@@ -218,7 +236,7 @@ mov
 ldb 1
 sub
 str
-jmp :after_keypress
+jmp :after_press_up
 
 
 :pressed_left
@@ -229,7 +247,7 @@ mov
 ldb 1
 sub
 str
-jmp :after_keypress
+jmp :after_press_left
 
 
 :pressed_down
@@ -240,7 +258,7 @@ mov
 ldb 1
 add
 str
-jmp :after_keypress
+jmp :after_press_down
 
 
 :pressed_right
@@ -251,7 +269,7 @@ mov
 ldb 1
 add
 str
-jmp :after_keypress
+jmp :after_press_right
 
 
 :render_level

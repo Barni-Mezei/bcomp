@@ -1,4 +1,4 @@
-;asm1.0
+;asm  1.0
 
 LDA 2   ; Load 2 numbers
 LDB	4

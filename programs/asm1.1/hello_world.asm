@@ -1,4 +1,4 @@
-;asm1.1
+;asm  1.1
 $letter_a 97
 $letter_b 98
 $letter_c 99

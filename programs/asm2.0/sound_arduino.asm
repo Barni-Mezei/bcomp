@@ -1,4 +1,4 @@
-;asm2.0
+;asm  2.0
 
 $port_pins 0
 $port_console 2

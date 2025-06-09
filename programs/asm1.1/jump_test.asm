@@ -1,4 +1,4 @@
-;asm1.1
+;asm  1.1
 
 lda 1
 lda 2

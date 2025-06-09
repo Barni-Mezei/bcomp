@@ -13,7 +13,7 @@ The *bcomp assembly* has many versions, for many architectures, and platforms.
 
 - `1.0`: Architecture: 1.0, Platform: Scrap Mechanic computer
 - `1.1`: Architecture: 1.0, Platform: Scrap Mechanic computer 1.1, bcomp_vm_asm1.1
-- ~`2.0`: Architecture: ~2.0, Platform: bcomp_vm_asm2.0, Arduino UNO, Texas Instruments TI-84 Plus Python edition
+- `2.0`: Architecture: 2.0, Platform: bcomp_vm_asm2.0, Arduino UNO, Texas Instruments TI-84 Plus Python edition
 
 ## Comments
 Commants in this language, will be completely ignored during compilation. A comment starts with a `;` character and spans until the end of the line.

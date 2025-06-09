@@ -1,4 +1,4 @@
-;asm2.0
+;asm  1.1
 
 ;------------------;
 ; Create constants ;
@@ -34,190 +34,173 @@ $space 32
 $line 95
 $dash 45
 
-$mask_left 0b00000000_00000001
-$mask_right 0b00000000_00000010
-$mask_up 0b00000000_00000100
-$mask_down 0b00000000_00001000
-
 ; Output ports
-$port_console 1
-$port_display_control 3
-$port_display_row 4
+$port_console 0
+$port_display_control 1
+$port_display_row 2
 
 ; Input ports
 $port_keyboard 0
 $port_number 1
+$port_letter 2
 
 $i 0            ; Address of the main iteration counter
 $i2 1           ; Address of the display iteration counter
 $i3 2           ; Address of the player row iteration counter
-$row_index 3    ; Address of the row index counter
-$player_row_buffer 4    ; The buffer of the currently generated player row
-$player_x 5    ; Address of the player's x coordinate
-$player_y 6    ; Address of the player's y coordinate
+$row_index 5    ; Address of the row index counter
+$player_row_buffer 6    ; The buffer of the currently generated player row
+$player_x 10    ; Address of the player's x coordinate
+$player_y 11    ; Address of the player's y coordinate
 
-$level_start 8    ; The starting address of the level
+$level_start 100    ; The starting address of the level
 $level_length 16    ; The length of the level
-
-$user_input 7
 
 ;-------------------;
 ; Initialise memory ;
 ;-------------------;
 
 adr $i
-stv 11  ; Iteration count (+1)
+ldi 11  ; Iteration count (+1)
 adr $player_x
-stv 8
+ldi 8
 adr $player_y
-stv 8
+ldi 8
 
 ; Load level
+;adr 100
+;ldi 0b11111111_11111111
+;adr 101
+;ldi 0b11000000_00000001
+;adr 102
+;ldi 0b10100000_00000001
+;adr 103
+;ldi 0b10010000_00000001
+;adr 104
+;ldi 0b10001000_00000001
+;adr 105
+;ldi 0b10000100_00000001
+;adr 106
+;ldi 0b10000010_00000001
+;adr 107
+;ldi 0b10000001_00000001
+;adr 108
+;ldi 0b10000000_10000001
+;adr 109
+;ldi 0b10000000_01000001
+;adr 110
+;ldi 0b10000000_00100001
+;adr 111
+;ldi 0b10000000_00010001
+;adr 112
+;ldi 0b10000000_00001001
+;adr 113
+;ldi 0b10000000_00000101
+;adr 114
+;ldi 0b10000000_00000011
+;adr 115
+;ldi 0b11111111_11111111
 
-mva $level_start
-swa
-stv 0b11111111_11111111
-inc 1
-mca
-swa
-stv 0b10000000_00000001
-inc 1
-mca
-swa
-stv 0b10000000_00000001
-inc 1
-mca
-swa
-stv 0b10000000_00000001
-inc 1
-mca
-swa
-stv 0b10000000_00000001
-inc 1
-mca
-swa
-stv 0b10000000_00000001
-inc 1
-mca
-swa
-stv 0b10000000_00000001
-inc 1
-mca
-swa
-stv 0b10000000_00000001
-inc 1
-mca
-swa
-stv 0b10000000_00000001
-inc 1
-mca
-swa
-stv 0b10000000_00000001
-inc 1
-mca
-swa
-stv 0b10000000_00000001
-inc 1
-mca
-swa
-stv 0b10000000_00000001
-inc 1
-mca
-swa
-stv 0b10000000_00000001
-inc 1
-mca
-swa
-stv 0b10000000_00000001
-inc 1
-mca
-swa
-stv 0b10000000_00000001
-inc 1
-mca
-swa
-stv 0b11111111_11111111
+adr 100
+ldi 0b11111111_11111111
+adr 101
+ldi 0b10000000_00000001
+adr 102
+ldi 0b10000000_00000001
+adr 103
+ldi 0b10000000_00000001
+adr 104
+ldi 0b10000000_00000001
+adr 105
+ldi 0b10000000_00000001
+adr 106
+ldi 0b10000000_00000001
+adr 107
+ldi 0b10000000_00000001
+adr 108
+ldi 0b10000000_00000001
+adr 109
+ldi 0b10000000_00000001
+adr 110
+ldi 0b10000000_00000001
+adr 111
+ldi 0b10000000_00000001
+adr 112
+ldi 0b10000000_00000001
+adr 113
+ldi 0b10000000_00000001
+adr 114
+ldi 0b10000000_00000001
+adr 115
+ldi 0b11111111_11111111
 
 ;--------------;
 ; Main program ;
 ;--------------;
 
-:loop
+:loop   ; Loop uses memory[0] as iteration counter
+adr $i  ; Load iteration counter
+mov
+ldb 1   ; Iteration decrease amount
+sub     ; Decrease iteration counter
+mca
+jio :loop_end
+str     ; Save iteration counter
 
+; Loop content
 jsr :loop_body
-;nop
 
 jmp :loop
+:loop_end
+
+hlt
 
 ;-------;
 ; Jumps ;
 ;-------;
 :loop_body
 
-; Read user input (and store it)
-adr $user_input
-inp $port_keyboard
-sta
+; Read user input (and store it to memory[255])
+adr 255
+inp $port_letter
+mac
+str
 ;out $port_console
 
-; Check if W is pressed
-adr $user_input
-lda
-mvb $mask_up
-and
-mca
-mvb 0
-jsr :is_not_equal
+ldb $letter_w
+jsr :is_equal
 jio :pressed_up
-:after_press_up
 
-; Check if A is pressed
-adr $user_input
-lda
-mvb $mask_left
-and
-mca
-mvb 0
-jsr :is_not_equal
+mov ; Load back user input from meory
+ldb $letter_a
+jsr :is_equal
 jio :pressed_left
-:after_press_left
 
-; Check if S is pressed
-adr $user_input
-lda
-mvb $mask_down
-and
-mca
-mvb 0
-jsr :is_not_equal
+mov  ; Load back user input from meory
+ldb $letter_s
+jsr :is_equal
 jio :pressed_down
-:after_press_down
 
-; Check if D is pressed
-adr $user_input
-lda
-mvb $mask_right
-and
-mca
-mvb 0
-jsr :is_not_equal
+mov  ; Load back user input from meory
+ldb $letter_d
+jsr :is_equal
 jio :pressed_right
-:after_press_right
 
-;mva $dash
+;lda $dash
 ;out $port_console
+
+:after_keypress
 
 ; Print player coordinates
-;mva $letter_x
+;lda $letter_x
 ;out $port_console
 ;adr $player_x
-;lda
+;mov
 ;out $port_console
 ;
-;mva $letter_y
+;lda $letter_y
 ;out $port_console
 ;adr $player_y
-;lda
+;mov
 ;out $port_console
 
 ; Render level
@@ -228,77 +211,79 @@ rtn
 
 
 :pressed_up
-;mva $letter_u
+;lda $letter_u
 ;out $port_console
 adr $player_y   ; Player y -= 1
-lda
-dec 1
-mca
-sta
-jmp :after_press_up
+mov
+ldb 1
+sub
+str
+jmp :after_keypress
 
 
 :pressed_left
-;mva $letter_l
+;lda $letter_l
 ;out $port_console
-adr $player_x   ; Player x += 1
-lda
-inc 1
-mca
-sta
-jmp :after_press_left
+adr $player_x   ; Player x -= 1
+mov
+ldb 1
+sub
+str
+jmp :after_keypress
 
 
 :pressed_down
-;mva $letter_d
+;lda $letter_d
 ;out $port_console
 adr $player_y   ; Player y += 1
-lda
-inc 1
-mca
-sta
-jmp :after_press_down
+mov
+ldb 1
+add
+str
+jmp :after_keypress
 
 
 :pressed_right
-;mva $letter_r
+;lda $letter_r
 ;out $port_console
-adr $player_x   ; Player x -= 1
-lda
-dec 1
-mca
-sta
-jmp :after_press_right
-
+adr $player_x   ; Player x += 1
+mov
+ldb 1
+add
+str
+jmp :after_keypress
 
 
 :render_level
 ; Reset display row index
 adr $row_index
-stv 0
+ldi 0
 
 ; Set iteration counter
 adr $i2
-mva $level_length    ; Iteration count (+1)
-inc 1
-mca
-sta
+lda $level_length    ; Iteration count (+1)
+ldb 1
+add
+str
 
-;mva $dash
+lda $dash
 ;out $port_console
 
 :loop2   ; Loop uses memory[0] as iteration counter
 adr $i2  ; Load iteration counter
-lda
-dec 1
+mov
+ldb 1   ; Iteration decrease amount
+sub     ; Decrease iteration counter
 mca
 jio :loop2_end
-sta     ; Save iteration counter
+str     ; Save iteration counter
+
 ; Loop content
 jsr :loop2_body
-jmp :loop2
 
+jmp :loop2
 :loop2_end
+
 jsr :display_flush
 
 rtn
@@ -306,55 +291,51 @@ rtn
 ; Display row iteration
 :loop2_body
 adr $row_index  ; Incement row index
-lda
-inc 1
-mca
-sta
+mov
+ldb 1
+add
+str
 
-; Undo row index incrementation, for this output
-dec 1
-mca
 out $port_display_control   ; Send row index to display
-
 
 ; Empty row buffer
 adr $player_row_buffer
-stv 0b00000000_00000000
+ldi 0b00000000_00000000
 
 ; Check if this is the row with the player on it
 mab
 adr $player_y
-lda
+mov
 jsr :is_not_equal
 jio :not_same_row
 
 jsr :get_player_row
 adr $player_row_buffer
-lda
+mov
 ;out $port_console
 
 :not_same_row
 
 ; Calculate addres from rowindex + offset
 adr $row_index
-lda
-mvb $level_start
+mov
+ldb $level_start
 add
 mca
-mvb 1
+ldb 1
 sub
 mca
 ;out $port_console
 
 
 ; Get row from memory
-sra
-lda
+ara
+mov
 mab
 
 ; Get buffered row
 adr $player_row_buffer
-lda
+mov
 bor
 mca
 out $port_display_row   ; Send row to display
@@ -376,18 +357,19 @@ rtn
 :get_player_row
 
 adr $i3
-stv 16   ; 2 bytes (16) + 1
+ldi 16   ; 2 bytes (16) + 1
 
 adr $player_row_buffer  ; Start shifting <- 1 bit from the left
-stv 0b00000000_00000001
+ldi 0b00000000_00000001
 
 :loop3   ; Loop uses memory as iteration counter
 adr $i3  ; Load iteration counter
-lda
-dec 1
+mov
+ldb 1   ; Iteration decrease amount
+sub     ; Decrease iteration counter
 mca
 jio :loop3_end
-sta     ; Save iteration counter
+str     ; Save iteration counter
 
 ; Loop content
 jsr :loop3_body
@@ -397,24 +379,22 @@ jmp :loop3
 
 rtn
 
-
-
 ; While constructiong the row
 :loop3_body
 
 ; Shift row buffer <- by 1
 adr $player_row_buffer
-lda
+mov
 shl
-mca
-sta
+str
 mca
 
 ; Check if it is the correct iteration number
 adr $i3
-ldb
+mov
+mab
 adr $player_x
-lda
+mov
 jsr :is_equal
 jio :stop_loop3
 rtn
@@ -422,19 +402,18 @@ rtn
 ; Exit loop if iteration number = player_x
 :stop_loop3
 adr $player_row_buffer  ; Shift back -> by 1
-lda
+mov
 shr
-mca
-sta
+str
 adr $i3 ; Stop looping
-stv 1
+ldi 1
 rtn
 
 ;---------------;
 ; Flush display ;
 ;---------------;
 :display_flush
-mva 0b11000000_00000000
+lda 0b11000000_00000000
 out $port_display_control
 rtn
 
@@ -448,11 +427,11 @@ xor
 
 jio :is_equal_zero
 
-mva 0   ; Not equal
+lda 0   ; Not equal
 rtn
 
 :is_equal_zero
-mva 1   ; Equals
+lda 1   ; Equals
 rtn
 
 ;------------;
@@ -465,13 +444,13 @@ xor
 
 jio :is_not_equal_zero
 
-mva 1   ; Not equal
-mvb 1
+lda 1   ; Not equal
+ldb 1
 sub
 rtn
 
 :is_not_equal_zero
-mva 0   ; Equals
-mvb 1
+lda 0   ; Equals
+ldb 1
 add
 rtn

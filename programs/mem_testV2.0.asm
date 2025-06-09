@@ -1,4 +1,4 @@
-;asm2.0
+;asm  2.0
 
 MVA 2   ; Load 2 numbers
 MVB	4
