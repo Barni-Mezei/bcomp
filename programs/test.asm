@@ -1,61 +1,16 @@
-;asm2.0
+;asm 2.0
 
-$port_pins 0
-$port_console 2
+#loadStr "Hello!" 0
+#loadArray [1] 8
 
-$input 0
+; Comment here!
+;
 
-;--------;
-;- Main -;
-;--------;
+$a 5
+$b "a"
+$c "abc"
 
-:loop
+; comment
+mva 0 ; comment
 
-inp $port_pins
-adr $input
-sta
-
-jsr :shift
-jsr :shift
-jsr :shift
-jsr :shift
-jsr :shift
-jsr :shift
-jsr :shift
-jsr :shift
-
-mva 0
-out $port_console
-out $port_console
-
-jmp :loop
-
-;------------;
-;- Functions-;
-;------------;
-
-:shift
-lda
-msk 1
-mca
-
-jio :zero
-
-; one char
-mva 49
-out $port_console
-jmp :end
-
-:zero
-; zero char
-mva 48
-out $port_console
-
-:end
-
-lda
-shr
-mca
-sta
-
-rtn
+mva $c

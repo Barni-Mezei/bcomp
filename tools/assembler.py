@@ -15,6 +15,8 @@ arg_parser.add_argument('input_file', help="The path to your '.asm' file")
 arg_parser.add_argument('-o', '--output-path', help="The path to the directory, that will contain your compiled code")
 arg_parser.add_argument('-f', '--file-name', help="The name of your compiled file. Filetype will be ignored!")
 arg_parser.add_argument('-cpp', '--cpp', default=False, action='store_true', help="Export as C++ array for importing to Arduino")
+arg_parser.add_argument('-v', '--version', default="0", type=str, help="The assembly version. Set to 0 to read from file. (Requires the 1st line to be a comment)")
+arg_parser.add_argument('-lm', '--list-macros', default=False, action='store_true', help="Lists all available macros for the specified assembly version")
 
 #Parse command line arguments
 if len(sys.argv[1::]) == 0:
@@ -38,20 +40,31 @@ commands, command_lookup = load_commands(True)
 out = []
 labels = {}
 constants = {}
+macros = {}
 read_lines = []
+
+ASM_VERSION = arguments.version
 
 print(f"--- Preprocessing: {AQUA}{sys.argv[1]}{WHITE}")
 try:
     with open(sys.argv[1], "r", encoding="utf8") as f:
         for i, line in enumerate(f):
+            # Determine assembly version
+            if arguments.version == "0" and i == 0 and line[0:5] == ";asm ":
+                ASM_VERSION = line[5::]
+                continue
+
             line = line.strip().replace("\t", " ")
 
             if line == "" or line[0] == ";":
                 print(f"{RED}SKIPPING{WHITE}")
                 continue
 
-            tokens = line.split(" ")[0:2]
-            print(tokens)
+            tokens = []
+            for t in line.split(" "):
+                if t[0] == ";": break
+                tokens.append(t)
+            #print(tokens)
 
             #if len(tokens) > 1 and not tokens[0][0] in [":", "$"] and tokens[1] == "" and commands[tokens[0].lower()][1] == 1:
             #    print(f"{RED}ERROR: Not enough tokens!{WHITE}")
@@ -70,33 +83,59 @@ except FileNotFoundError as e:
     print(f"{RED}File not found!{WHITE}")
     exit()
 
-print(f"--- Compiling: {AQUA}{sys.argv[1]}{WHITE}")
+print(f"--- Compiling: {AQUA}{sys.argv[1]}{WHITE} With assembly version: {AQUA}{ASM_VERSION}{WHITE}")
 
-#Scanning for labels and constants
-special_offset = 0 # Offset caused by labels and constants (whole empty line)
+def parseNumber(number : str, throwError = False) -> int:
+    if "0b" in number: return int(number, base=2)
+    if "0x" in number: return int(number, base=16)
+
+    if throwError:
+        return int(number, base=10)
+    else:
+        try: return int(number, base=10)
+        except: return 0
+
+#Scanning for labels, constants and macros
+special_offset = 0 # Offset caused by labels, constants or macros (whole empty line)
 for i, data in enumerate(read_lines):
     ins = data["tokens"][0]
     arg = data["tokens"][1]
 
-    label_name = ins.replace(":", "")
-    constant_name = ins.replace("$", "")
+    special_name = ins[1::]
 
     #Is label?
     if ins[0] == ":":
         print(f"{WHITE}Label found: {AQUA}{ins}{WHITE} value: {GRAY}{i - special_offset}")
-        labels[label_name] = i - special_offset
+        labels[special_name] = i - special_offset
         special_offset += 1
         continue
 
     #Is constant?
     if ins[0] == "$":
         print(f"{WHITE}Constant found: {AQUA}{ins}{WHITE} value: {GRAY}{arg}")
-        if "0b" in arg: constants[constant_name] = int(arg, base=2)
-        elif "0x" in arg: constants[constant_name] = int(arg, base=16)
-        else: constants[constant_name] = int(arg, base=10)
+        if arg[0] == '"': constants[special_name] = ord(arg[1:-1:][0]) # Get character index
+        else: constants[special_name] = parseNumber(arg)
         special_offset += 1
         continue
 
+    #Is macro?
+    if ins[0] == "#":
+        print(f"{WHITE}Macro found: {AQUA}{ins}{WHITE} value: {GRAY}{arg}")
+
+        macros[special_name] = {
+            "name": special_name,
+            "arguments": data["tokens"][1::]
+        }
+        
+        special_offset += 1
+        continue
+
+print("Constants")
+print(constants)
+print("Macros")
+print(macros)
+
+# Reaplace label, constant and word values
 for _, data in enumerate(read_lines):
     index = data["index"]
     ins = data["tokens"][0]
@@ -104,6 +143,7 @@ for _, data in enumerate(read_lines):
 
     label_arg = arg.replace(":", "")
     constant_arg = arg.replace("$", "")
+    macro_name = ins[1::]
 
     print(f"{GRAY}{index:03d}: {AQUA}{ins}\t{WHITE}{arg}")
 
@@ -112,6 +152,15 @@ for _, data in enumerate(read_lines):
 
     #Is constant declaration?
     if ins[0] == "$": continue
+
+    #Is macro declaration?
+    if ins[0] == "#":
+        if not macro_name in macros:
+            print(f"{RED}ERROR: Unrecognised macro: '{macro_name}'!{WHITE}")
+            exit()
+    
+        print(f"{GRAY}Executing macro {AQUA}{macro_name}{GRAY}")
+        continue
 
     ins = ins.lower()
 
@@ -141,9 +190,7 @@ for _, data in enumerate(read_lines):
     out.append(commands[ins][0]) #Append command index
     #Append argument
     try:
-        if "0b" in arg: out.append(str(int(arg, base=2))) 
-        elif "0x" in arg: out.append(str(int(arg, base=16)))
-        else: out.append(str(int(arg, base=10)))
+        out.append(str(parseNumber(arg, throwError = True)))
     except Exception as e:
         print(f"{RED}ERROR: Invalid argument! (Must be a number){WHITE}")
         exit()

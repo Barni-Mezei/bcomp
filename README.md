@@ -4,11 +4,11 @@ First, load your assemnbly in to the commands.txt. This loads all available comm
 
 # Writing assembly
 
-Once you have your assembly instructions loaded (commands.txt), you can write some code. The format of a line if the following: `command argument` (the space is nescesseary) Arguments must be numbers. The assembler accepts 3 formats for numbers: decimal `23` binary `0b1001` and hex `0xf8`. If a command does not have an argument, you can still specify it, but will be ignored, or you can omit it entirely. The assembler supports comments. A comment starts with a `;` character and spans for the end of a line. There a re support for labels too. You can specify a label, by typing `:<label name>` where label name must be 1 word, without spaces. Tu use a label's value, for eaxample type: `JMP :<label name>`. There are constants, prefixed with the `$` sign. They hold constant values, and will bre replaced during asembling. To create a constant type: `$<constant name> <number value>`. Ti use a constant's value, type: `JMP $<constant name>`
+You can write your assembly code in to any file, with the `.asm` extension. For the language documentation read the [Bcomp assembly](doc/bcomp_assembly.md)
 
 ### Assembling your script
 
-To assemble your code you can use the following script: `python assembler.py <your file .asm>`. This will generate a .o file, containing numbers, separated by commas. If you want to specify the parameters of the output file, type `-h` for help.
+To assemble your code you can use the following script: `python assembler.py <your file .asm>`. This will generate a .o file, with a specified format. If you want to specify the parameters of the output file, type `-h` for help. For further information see [The assembler](doc/assembler.md)
 
 ### Assembly versions
 
