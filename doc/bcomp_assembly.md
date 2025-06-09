@@ -7,6 +7,15 @@
 - Constants: `$magic_number 13` `mvb $magic_number`
 - Macros: `#loadStr "Hello, world!" 0`
 
+## Versions
+
+The bcomp assembly has many versions, for many architectures, and platforms.
+
+- `1.0`: Architecture: 1.0, Platform: Scrap Mechanic computer
+- `1.1`: Architecture: 1.0, Platform: Scrap Mechanic computer 1.1, bcomp_vm_asm1.1
+- ~`2.0`: Architecture: 2.0, Platform: bcomp_vm_asm2.0, Arduino UNO
+- `2.0`: Architecture: 2.0, Platform: bcomp_vm_asm2.0, Arduino UNO
+
 ## Comments
 Commants in this language, will be completely ignored during compilation. A comment starts with a `;` character and spans until the end of the line.
 
@@ -15,6 +24,7 @@ The format of an instruction is the following: `instruction argument`. Note that
 
 Arguments must be numbers. The assembler accepts 3 formats for numbers: decimal (`23`) binary (prefixed with `0b`: `0b1001`) and hexadecimal (prefixed with `0x`:`0xf8`). If a command does not need an argument, you can still specify it, but will be ignored, or you can omit it entirely. Omitted arguments will be compiled as 0.
 
+To learn, what instruction does what, and how the architecture was built, you can take a look at the files, in the doc folder. Specifically, the architecture pngs and the Bcomp - Assembly csvs.
 
 ## Special functionality
 

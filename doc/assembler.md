@@ -1,3 +1,31 @@
-# Usage
+# Bcomp assembly - The assmeblers
 
-Once you have your assembly instructions loaded (commands.txt), you can write some code. The format of a line if the following: `command argument` (the space is nescesseary) Arguments must be numbers. The assembler accepts 3 formats for numbers: decimal `23` binary `0b1001` and hex `0xf8`. If a command does not have an argument, you can still specify it, but will be ignored, or you can omit it entirely. The assembler supports comments. A comment starts with a `;` character and spans for the end of a line. There a re support for labels too. You can specify a label, by typing `:<label name>` where label name must be 1 word, without spaces. Tu use a label's value, for eaxample type: `JMP :<label name>`. There are constants, prefixed with the `$` sign. They hold constant values, and will bre replaced during asembling. To create a constant type: `$<constant name> <number value>`. To use a constant's value, type: `JMP $<constant name>` For loading constant values to memory, you can use words. Type this: `.text "Hello!" 10`, this will put each character to the memory, starting from address 10. You can also o it with numbers too. `.array [4,5,0b00000000_00000011,0xFF] 0`. If using the array format, the array must begin with a `[` and en with a `]`. Each item must be a number, can not be a character. The items of the array are separated by cllons. No spaces allowed  inside an array definition. (Not even for making it look pretty) To access the length of a defined word prefix the name with a `#` character. Like this: `ADR #text` During word definition, you can inly use numbers, or characters.
+## What is it?
+
+The assembler, is a python script ([this one](../assembler.py)) that converts your assembly files into "machine code", for the specified platform.
+
+## Supported platforms
+
+- The python VM machine, in the root directory (Emulated VM)
+- A version of this computer, built in the game "Scrap Mechanic" (Natively executed bytecode)
+- Arduino UNO, or Nano, or similar microcontrollers. (Emulated VM)
+- Texas Instruments TI-84 plus, Python edition (Emulated VM)
+
+The data on every architecture, and assembly version, can be found in the doc folder, specifically the architecture pngs and the Bcomp - Assembly csvs.
+
+## How to use it?
+
+First, you have to make a script, that you want to run on your selected platform / machine. This file must have the ".asm" extension.
+
+After writing your program, you should load your instruction set, from an external source, or from one of the available version, in the docs folder. To do this, you can use the [Command parser](../command_parser.py). To use it type: `python3 command_parser.py <language file>.csv`. This will generate a "commands.txt" file, that contains information about the available commands.
+
+When your code is ready, and your instructions are loaded, you can run the following command `python3 assembler.py <your code>.asm`.
+You can specify parameters to the assembler, for example the assembly version, you are working with. Here is a list of available parameters.
+
+- `-o` You can specify the output directory
+- `-f` You can specify the output file name
+- `-cpp` If this flag is present, the output will be a valid C or C++ code, for pasting in to the Arduino source code, for hardcoding a program.
+- `-v` The assembly version of your script. You cna also specify it at the top of your script like so: `;asm 2.0`
+- `-lm` Lists all available macros, for the specified assembly version. (-v Must be specified) If this flag is present, no assembling will be executed.
+
+The content of the output file, (which has the extenbsion `.o`) can be inputted to one of the selected platfroms, if the correct format was given, and the correct assembly version was used.

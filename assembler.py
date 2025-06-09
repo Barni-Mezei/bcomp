@@ -7,8 +7,7 @@ arg_parser = argparse.ArgumentParser(
     exit_on_error = True,
     prog = "BCOMP Assembler",
     description = "This program assembles your '.asm' files in to '.o' files, using the commands specified in commands.txt",
-    usage="To assemble your code, you have to specify the path to the '.asm' file,\nand it will create a new '.o' file, with the same name as the source code next to itself.\n"
-    "If you want to specify the output location of the '.o' file, you can use the -o parameter.\nIf you want to name your output file, you can use the -f parameter.",
+    usage="To assemble your code, you have to specify the path to your '.asm' file, and run it.\nFor additional information use the -h flag.",
 )
 
 arg_parser.add_argument('input_file', help="The path to your '.asm' file")
@@ -16,22 +15,22 @@ arg_parser.add_argument('-o', '--output-path', help="The path to the directory, 
 arg_parser.add_argument('-f', '--file-name', help="The name of your compiled file. Filetype will be ignored!")
 arg_parser.add_argument('-cpp', '--cpp', default=False, action='store_true', help="Export as C++ array for importing to Arduino")
 arg_parser.add_argument('-v', '--version', default="0", type=str, help="The assembly version. Set to 0 to read from file. (Requires the 1st line to be a comment)")
-arg_parser.add_argument('-lm', '--list-macros', default=False, action='store_true', help="Lists all available macros for the specified assembly version")
+arg_parser.add_argument('-lm', '--list-macros', default=False, action='store_true', help="List all available macros for the specified assembly version")
 
 #Parse command line arguments
-if len(sys.argv[1::]) == 0:
-    print(f"{RED}No input file given!{WHITE}")
-    exit()
-
-if len(sys.argv) > 1 and not ".asm" in sys.argv[1]:
-    print(f"{RED}Missing or invalid file type! (Must be .asm){WHITE}")
-    exit()
-
 try:
     arguments = arg_parser.parse_args()
 except Exception as e:
     print(f"{RED}ERROR: {str(e).capitalize()}{WHITE}")
     exit()
+
+"""if len(sys.argv[1::]) == 0:
+    print(f"{RED}No input file given!{WHITE}")
+    exit()
+
+if len(sys.argv) > 1 and not ".asm" in sys.argv[1]:
+    print(f"{RED}Missing or invalid file type! (Must be .asm){WHITE}")
+    exit()"""
 
 print(f"--- Loading {AQUA}commands{WHITE}")
 
@@ -45,9 +44,9 @@ read_lines = []
 
 ASM_VERSION = arguments.version
 
-print(f"--- Preprocessing: {AQUA}{sys.argv[1]}{WHITE}")
+print(f"--- Preprocessing: {AQUA}{arguments.input_file}{WHITE}")
 try:
-    with open(sys.argv[1], "r", encoding="utf8") as f:
+    with open(arguments.input_file, "r", encoding="utf8") as f:
         for i, line in enumerate(f):
             # Determine assembly version
             if arguments.version == "0" and i == 0 and line[0:5] == ";asm ":
@@ -83,7 +82,7 @@ except FileNotFoundError as e:
     print(f"{RED}File not found!{WHITE}")
     exit()
 
-print(f"--- Compiling: {AQUA}{sys.argv[1]}{WHITE} With assembly version: {AQUA}{ASM_VERSION}{WHITE}")
+print(f"--- Compiling: {AQUA}{arguments.input_file}{WHITE} With assembly version: {AQUA}{ASM_VERSION}{WHITE}")
 
 def parseNumber(number : str, throwError = False) -> int:
     if "0b" in number: return int(number, base=2)
@@ -204,7 +203,7 @@ def give_new_type(full_file_path, new_type):
     return ".".join(path_leaf(full_file_path).split(".")[0:-1]) + new_type
 
 save_path = "./binaries/" if os.path.exists("./binaries/") else "./"
-save_name = give_new_type(sys.argv[1], ".o")
+save_name = give_new_type(arguments.input_file, ".o")
 
 if arguments.output_path: save_path = arguments.output_path
 if arguments.file_name: save_name = give_new_type(arguments.file_name + ".D", ".o")
