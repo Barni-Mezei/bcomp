@@ -5,9 +5,9 @@ $delay_amount 100
 $port_pins 0
 $port_console 1
 
-;--------;
-;- Main -;
-;--------;
+;------;
+; Main ;
+;------;
 
 :loop
 
@@ -35,9 +35,9 @@ jsr :delay
 jmp :loop
 
 
-;-------------;
-;- Functions -;
-;-------------;
+;-----------;
+; Functions ;
+;-----------;
 
 :delay
 adr 0

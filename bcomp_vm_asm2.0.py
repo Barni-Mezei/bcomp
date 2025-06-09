@@ -448,8 +448,6 @@ def handleOutputDevices():
     #Console port[1]
     if ports['output'][1][0]:
         if debug: print(f"- DEVICE 'Console': Printing value (number)")
-        char_code = ports['output'][1][1]
-        char = chr(char_code) if char_code >= 32 and char_code <= 127 else ' '
         print(f"{f'{GRAY}$ ' if result == 'break' else ''}{GRAY}{decToBin(ports['output'][1][1], 16)} {WHITE}{ports['output'][1][1]:>5d}{WHITE}")
         ports['output'][1][0] = False
 
@@ -457,7 +455,7 @@ def handleOutputDevices():
     if ports['output'][2][0]:
         if debug: print(f"- DEVICE 'Console': Printing value (character)")
         char_code = ports['output'][2][1]
-        char = chr(char_code) if char_code >= 32 and char_code <= 127 else ' '
+        char = chr(char_code)
         print(char, end="")
         ports['output'][2][0] = False
 

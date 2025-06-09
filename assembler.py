@@ -1,4 +1,4 @@
-import sys
+import importlib
 import os
 import argparse
 from lib.lib import *
@@ -39,10 +39,12 @@ commands, command_lookup = load_commands(True)
 out = []
 labels = {}
 constants = {}
-macros = {}
+
 read_lines = []
 
 ASM_VERSION = arguments.version
+
+MACRO = None
 
 print(f"--- Preprocessing: {AQUA}{arguments.input_file}{WHITE}")
 try:
@@ -63,11 +65,6 @@ try:
             for t in line.split(" "):
                 if t[0] == ";": break
                 tokens.append(t)
-            #print(tokens)
-
-            #if len(tokens) > 1 and not tokens[0][0] in [":", "$"] and tokens[1] == "" and commands[tokens[0].lower()][1] == 1:
-            #    print(f"{RED}ERROR: Not enough tokens!{WHITE}")
-            #    exit()
 
             if len(tokens) == 1: tokens.append("0")
             if tokens[1] == "" or tokens[1] == ";": tokens[1] = "0"
@@ -82,7 +79,51 @@ except FileNotFoundError as e:
     print(f"{RED}File not found!{WHITE}")
     exit()
 
-print(f"--- Compiling: {AQUA}{arguments.input_file}{WHITE} With assembly version: {AQUA}{ASM_VERSION}{WHITE}")
+
+ASM_VERSION = ASM_VERSION.strip()
+print(f"--- Importing macros for assembly version: {AQUA}{ASM_VERSION}{WHITE}")
+if ASM_VERSION == "0":
+    print(f"--- {GRAY}No assembly version specified!{WHITE}")
+else:
+    MACRO = importlib.import_module(f"assembler_macros.v{ASM_VERSION.replace('.', '_')}")
+
+#Executing macros
+i = 0
+while i < len(read_lines):
+    data = read_lines[i]
+    ins = data["tokens"][0]
+    arg = data["tokens"][1]
+
+    macro_name = ins[1::]
+
+    #Is macro?
+    if MACRO == None or ins[0] != "#":
+        i += 1
+        continue
+
+    print(f"{GRAY}Executing macro {AQUA}{macro_name}{WHITE}")
+
+    result = MACRO.Execute(macro_name, data["tokens"][1::])
+    if not result.success: exit()
+
+    inserted_code_length = len(result.instructions)
+    insertion_line_index = read_lines[i]["index"]
+
+    # Insert the code from the macro
+    for macro_index, line in enumerate(result.instructions):
+        read_lines.insert(i + macro_index, {"index": i + macro_index, "tokens": [str(a) for a in line]})
+
+    # Remove the original macro line
+    read_lines.pop(i + inserted_code_length)
+
+    # Increase the index of every line after the macro
+    for line_index, line in enumerate(read_lines):
+        if line_index >= i + macro_index + 1 and line["index"] > insertion_line_index:
+            line["index"] = line_index
+
+    i += macro_index + 1
+
+print(f"--- Compiling: {AQUA}{arguments.input_file}{WHITE}")
 
 def parseNumber(number : str, throwError = False) -> int:
     if "0b" in number: return int(number, base=2)
@@ -97,6 +138,7 @@ def parseNumber(number : str, throwError = False) -> int:
 #Scanning for labels, constants and macros
 special_offset = 0 # Offset caused by labels, constants or macros (whole empty line)
 for i, data in enumerate(read_lines):
+    index = data["index"]
     ins = data["tokens"][0]
     arg = data["tokens"][1]
 
@@ -117,23 +159,6 @@ for i, data in enumerate(read_lines):
         special_offset += 1
         continue
 
-    #Is macro?
-    if ins[0] == "#":
-        print(f"{WHITE}Macro found: {AQUA}{ins}{WHITE} value: {GRAY}{arg}")
-
-        macros[special_name] = {
-            "name": special_name,
-            "arguments": data["tokens"][1::]
-        }
-        
-        special_offset += 1
-        continue
-
-print("Constants")
-print(constants)
-print("Macros")
-print(macros)
-
 # Reaplace label, constant and word values
 for _, data in enumerate(read_lines):
     index = data["index"]
@@ -151,15 +176,6 @@ for _, data in enumerate(read_lines):
 
     #Is constant declaration?
     if ins[0] == "$": continue
-
-    #Is macro declaration?
-    if ins[0] == "#":
-        if not macro_name in macros:
-            print(f"{RED}ERROR: Unrecognised macro: '{macro_name}'!{WHITE}")
-            exit()
-    
-        print(f"{GRAY}Executing macro {AQUA}{macro_name}{GRAY}")
-        continue
 
     ins = ins.lower()
 
