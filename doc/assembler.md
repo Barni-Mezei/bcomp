@@ -30,5 +30,6 @@ You can specify parameters to the assembler, for example the assembly version, y
 
 The list of macros can be found here:
 - [Bcomp assembly V2.0 macros](macros_2.0.md)
+- [Bcomp assembly V2.1 macros](macros_2.1.md)
 
 The content of the output file, (which has the extenbsion `.o`) can be inputted to one of the selected platfroms, if the correct format was given, and the correct assembly version was used.
