@@ -66,6 +66,13 @@ try:
                 if t[0] == ";": break
                 tokens.append(t)
 
+            # Fix single characters
+            for i, t in enumerate(tokens):
+                if t[-1] == '"' and tokens[i-1][0] == '"':
+                    print("Match!", t, tokens[i-1])
+                    tokens.insert(i-1, t + " " + tokens.pop(i))
+                    tokens.pop(i)
+
             if len(tokens) == 1: tokens.append("0")
             if tokens[1] == "" or tokens[1] == ";": tokens[1] = "0"
 
@@ -116,12 +123,10 @@ while i < len(read_lines):
     # Remove the original macro line
     read_lines.pop(i + inserted_code_length)
 
-    # Increase the index of every line after the macro
-    for line_index, line in enumerate(read_lines):
-        if line_index >= i + inserted_code_length + 1 and line["index"] > insertion_line_index:
-            line["index"] = line_index
-
     i += inserted_code_length
+
+# Fix line indexes
+for i, line in enumerate(read_lines): line["index"] = i
 
 for data in read_lines:
     print(data)

@@ -3,48 +3,48 @@ Binary representiation,,,,,,,,Index,Menmonic,Name,Argument,Description,Micro ins
 ,,,,,,,,1,MVA,Move value to A,The value,Moves RARG to RA,-
 ,,,,,,,,2,MVB,Move value to B,The value,Moves RARG to RB,-
 ,,,,,,,,3,MAB,Move A to B,-,Moves RA's value to RB,-
-,,,,,,,,4,MCA,Move AC to A,-,Moves RAC's value to RA,-
-,,,,,,,,5,MCB,Move AC to B,-,Moves RAC's value to RB,-
-,,,,,,,,6,ADD,Add,-,Adds RA and RB together and stores the result to RA,-
-,,,,,,,,7,INC,Increment,The value,Incerements RA by RARG (Adds them together),-
-,,,,,,,,8,SUB,Subtract,-,Subtracts RA and RB together and stores the result to RA,-
-,,,,,,,,9,DEC,Decrement,The value,Decrememnts RA by RARG (Subtracts RARG from RA),-
-,,,,,,,,10,BOR,Bitwise OR,-,Outputs the result of the bitwise OR operation on RA and RB,-
-,,,,,,,,11,SET,Set,The value,Outputs the bitwise OR of RA and RARG,-
-,,,,,,,,12,AND,Bitwise AND,-,Outputs the result of the bitwise AND operation on RA and RB,-
-,,,,,,,,13,MSK,Mask,The mask,Outputs the bitwise AND of RA and RARG,-
-,,,,,,,,14,XOR,Bitwise XOR,-,Outputs the result of the bitwise XOR operation on RA and RB,-
-,,,,,,,,15,ENC,Encrypt,The key,Encrypts RA with the key in RARG (bitwise XOR),-
-,,,,,,,,16,NOT,Bitwise NOT,-,Outputs the inverted RA,-
-,,,,,,,,17,SHR,Right shift,-,Outputs RA shifted to the right by 1 bit (divided by 2),-
-,,,,,,,,18,SHL,Left shift,-,Outputs RA shifted to the left by 1 bit (multiplied by 2),-
-,,,,,,,,19,CMP,Compare,The value,"Sets RAC to 0: RA = RARG, 1: RA < RARG, 2: RA > RARG",-
-,,,,,,,,20,ADR,Set address,The address,Sets both memory addresses to RARG,-
-,,,,,,,,21,SRV,Set read address,The address,Sets the read memory addresses to RARG,-
-,,,,,,,,22,SRA,Set read address,-,Sets the read memory addresses to RARG,-
-,,,,,,,,23,SWV,Set write address,The address,Sets the write memory addresses to RARG,-
-,,,,,,,,24,SWA,Set write address,-,Sets the write memory addresses to RA,-
-,,,,,,,,25,LDA,Load to A,-,Reads the value at the selected read address to RA,-
-,,,,,,,,26,LDB,Load to B,-,Reads the value at the selected read address to RB,-
-,,,,,,,,27,STV,Save value,The value,Writes RARG to the memory at the selected writing address,-
-,,,,,,,,28,STA,Save A,-,Writes RA to the memory at the selected writing address,-
-,,,,,,,,29,STB,Save B,-,Writes RB to the memory at the selected writing address,-
-,,,,,,,,30,CPY,Copy in memory,-,Copies the data from the read address to the write address in memory,-
-,,,,,,,,31,JMP,Jump,Line number,Jumps to the given address,-
-,,,,,,,,32,JSR,Jump to subroutine,Line number,"Jumps to the given address, and stores the source address to the stack",-
-,,,,,,,,33,JIC,Jump if overflow,Line number,"Jumps to the given address, if the overflow flag is on",-
-,,,,,,,,34,JIN,Jump if negative,Line number,"Jumps to the given address, if the negative flag is on",-
-,,,,,,,,35,JIO,Jump if zero,Line number,"Jumps to the given address, if the zero flag is on",-
-,,,,,,,,36,RTN,Return,-,Returns from subroutine,-
-,,,,,,,,37,OUT,Output to port,Port index,Puts RA to the selected port,-
-,,,,,,,,38,INP,Input from port,Port index,Loads the value from the selected port to RA,
-,,,,,,,,39,PVA,Push to stack A,The value,Pushes RARG to stack A,
-,,,,,,,,40,PVB,Push to stack B,The value,Pushes RARG to stack B,
-,,,,,,,,41,PSA,Push to stack A,-,Pushes RA to stack A,
-,,,,,,,,42,PSB,Push to stack B,-,Pushes RA to stack B,
-,,,,,,,,43,PPA,Pop from stack A,-,Pops the value from stack A into RA,
-,,,,,,,,44,PPB,Pop from stack B,-,Pops the value from stack B into RA,
-,,,,,,,,45,,,,,
+,,,,,,,,4,MBA,Move B to A,-,Moves RB's value to RA,-
+,,,,,,,,5,MCA,Move AC to A,-,Moves RAC's value to RA,-
+,,,,,,,,6,MCB,Move AC to B,-,Moves RAC's value to RB,-
+,,,,,,,,7,ADD,Add,-,Adds RA and RB together and stores the result to RA,-
+,,,,,,,,8,INC,Increment,The value,Incerements RA by RARG (Adds them together),-
+,,,,,,,,9,SUB,Subtract,-,Subtracts RA and RB together and stores the result to RA,-
+,,,,,,,,10,DEC,Decrement,The value,Decrememnts RA by RARG (Subtracts RARG from RA),-
+,,,,,,,,11,BOR,Bitwise OR,-,Outputs the result of the bitwise OR operation on RA and RB,-
+,,,,,,,,12,SET,Set,The value,Outputs the bitwise OR of RA and RARG,-
+,,,,,,,,13,AND,Bitwise AND,-,Outputs the result of the bitwise AND operation on RA and RB,-
+,,,,,,,,14,MSK,Mask,The mask,Outputs the bitwise AND of RA and RARG,-
+,,,,,,,,15,XOR,Bitwise XOR,-,Outputs the result of the bitwise XOR operation on RA and RB,-
+,,,,,,,,16,ENC,Encrypt,The key,Encrypts RA with the key in RARG (bitwise XOR),-
+,,,,,,,,17,NOT,Bitwise NOT,-,Outputs the inverted RA,-
+,,,,,,,,18,SHR,Right shift,-,Outputs RA shifted to the right by 1 bit (divided by 2),-
+,,,,,,,,19,SHL,Left shift,-,Outputs RA shifted to the left by 1 bit (multiplied by 2),-
+,,,,,,,,20,CMP,Compare,The value,"Sets RAC to 0: RA = RARG, 1: RA < RARG, 2: RA > RARG",-
+,,,,,,,,21,ADR,Set address,The address,Sets both memory addresses to RARG,-
+,,,,,,,,22,SRV,Set read address,The address,Sets the read memory addresses to RARG,-
+,,,,,,,,23,SRA,Set read address,-,Sets the read memory addresses to RARG,-
+,,,,,,,,24,SWV,Set write address,The address,Sets the write memory addresses to RARG,-
+,,,,,,,,25,SWA,Set write address,-,Sets the write memory addresses to RA,-
+,,,,,,,,26,LDA,Load to A,-,Reads the value at the selected read address to RA,-
+,,,,,,,,27,LDB,Load to B,-,Reads the value at the selected read address to RB,-
+,,,,,,,,28,STV,Save value,The value,Writes RARG to the memory at the selected writing address,-
+,,,,,,,,29,STA,Save A,-,Writes RA to the memory at the selected writing address,-
+,,,,,,,,30,STB,Save B,-,Writes RB to the memory at the selected writing address,-
+,,,,,,,,31,CPY,Copy in memory,-,Copies the data from the read address to the write address in memory,-
+,,,,,,,,32,PVA,Push value to stack A,The value,Pushes RARG to stack A,-
+,,,,,,,,33,PVB,Push value to stack B,The value,Pushes RARG to stack B,-
+,,,,,,,,34,PSA,Push A to stack A,-,Pushes RA to stack A,-
+,,,,,,,,35,PSB,Push A to stack B,-,Pushes RA to stack B,-
+,,,,,,,,36,PPA,Pop from stack A,-,Pops the value from stack A into RA,-
+,,,,,,,,37,PPB,Pop from stack B,-,Pops the value from stack B into RA,-
+,,,,,,,,38,JMP,Jump,Line number,Jumps to the given address,-
+,,,,,,,,39,JSR,Jump to subroutine,Line number,"Jumps to the given address, and stores the source address to the stack",-
+,,,,,,,,40,JIC,Jump if overflow,Line number,"Jumps to the given address, if the overflow flag is on",-
+,,,,,,,,41,JIN,Jump if negative,Line number,"Jumps to the given address, if the negative flag is on",-
+,,,,,,,,42,JIO,Jump if zero,Line number,"Jumps to the given address, if the zero flag is on",-
+,,,,,,,,43,RTN,Return,-,Returns from subroutine,-
+,,,,,,,,44,OUT,Output to port,Port index,Puts RA to the selected port,-
+,,,,,,,,45,INP,Input from port,Port index,Loads the value from the selected port to RA,-
 ,,,,,,,,46,,,,,
 ,,,,,,,,47,,,,,
 ,,,,,,,,48,,,,,

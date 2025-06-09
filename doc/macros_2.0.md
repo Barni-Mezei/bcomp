@@ -1,5 +1,9 @@
 # Bcomp assembly 2.0 - macros
 
+## Notes
+
+Every macro runs bcomp assembly. Please not that the might use registers, and thememory in their code, so make sure to save the values of your registers, if you want to use the after a macro. (It is not certain, that they delete your registers value, but some macros do use the registers.)
+
 ## loadStr
 `#loadStr "<string>" <start address>`
 

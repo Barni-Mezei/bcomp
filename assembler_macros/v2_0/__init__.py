@@ -70,8 +70,6 @@ class loadStr(Macro):
         text = self.arguments[0][1:-1:].replace("\\n", "\n").replace("\\t", "\t")
         start_address = int(self.arguments[1])
 
-        print(self.arguments)
-
         # Insert every character
         for i, char in enumerate(text):
             self.instructions += [

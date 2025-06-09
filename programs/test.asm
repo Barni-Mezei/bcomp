@@ -1,3 +1,3 @@
-;asm   2.0
+;asm 2.0
 
-#sayLetter "a"
+$space " "
