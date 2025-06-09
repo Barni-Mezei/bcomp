@@ -18,6 +18,13 @@ class Macro:
         self.arguments = self.join(args, '"', ' ', '"')
         self.arguments = self.join(self.arguments, '[', ' ', ']')
 
+        # Convert to integers, if the first character is a number
+        for i in range(len(self.arguments)):
+            try: int(self.arguments[i][0])
+            except: continue
+
+            self.arguments[i] = parseNumber(self.arguments[i])
+
         self.instructions = []
 
         self.execute()
@@ -60,14 +67,40 @@ class loadStr(Macro):
     def execute(self):
         if len(self.arguments) != 2: return self.raiseError("Number of parameters does not match")
 
-        text = self.arguments[0][1:-1:].replace('\\n', '\n').replace('\\t', '\t')
+        text = self.arguments[0][1:-1:].replace("\\n", "\n").replace("\\t", "\t")
         start_address = int(self.arguments[1])
+
+        print(self.arguments)
 
         # Insert every character
         for i, char in enumerate(text):
             self.instructions += [
                 ["swv", start_address + i],
                 ["stv", ord(char)],
+            ]
+
+        # Reset RA and write address
+        self.instructions += [
+            ["swv", 0],
+        ]
+
+        self.success = True
+        return
+
+class loadArray(Macro):
+    def execute(self):
+        if len(self.arguments) != 2: return self.raiseError("Number of parameters does not match")
+
+        text = self.arguments[0][1:-1:].replace(" ", "").split(",")
+        start_address = int(self.arguments[1])
+
+        print(self.arguments)
+
+        # Insert every character
+        for i, value in enumerate(text):
+            self.instructions += [
+                ["swv", start_address + i],
+                ["stv", value],
             ]
 
         # Reset RA and write address
@@ -127,24 +160,95 @@ class printStr(Macro):
 
 class forLoop(Macro):
     def execute(self):
-        print("For loop", self.arguments)
-
         if len(self.arguments) != 4: return self.raiseError("Number of parameters does not match")
 
-        counter_address = self.arguments[0]
-        number_from = self.arguments[1]
-        number_to = self.arguments[2]
-        label = self.arguments[3]
+        start_number = self.arguments[0]
+        end_number = self.arguments[1]
+        label_name = self.arguments[2]
+        counter_address = self.arguments[3]
 
+        label_names = {
+            "loop": f":for_loop_{id(self)}",
+            "end": f":for_loop_end_{id(self)}",
+        }
+
+        self.instructions += [
+            ["swv", counter_address],
+            ["stv", start_number],
+
+            # Loop
+            [label_names["loop"], 0],
+
+            # Get counter value
+            ["adr", counter_address],
+            ["lda", 0],
+
+            # Call loop body
+            ["jsr", label_name],
+
+            # Get counter value
+            ["srv", counter_address],
+            ["lda", 0],
+
+            # Increment counter
+            ["inc", 1],
+            ["mca", 0],
+            ["sta", 0],
+            ["enc", end_number],
+            # Exit or loop back
+            ["jio", label_names["end"]],
+            ["jmp", label_names["loop"]],
+            [label_names["end"], 0],
+        ]
 
         self.success = True
         return
 
-class loadArray(Macro):
+class reverseForLoop(Macro):
     def execute(self):
-        print("Load array called!", self.arguments)
+        if len(self.arguments) != 4: return self.raiseError("Number of parameters does not match")
+
+        start_number = self.arguments[0]
+        end_number = self.arguments[1]
+        label_name = self.arguments[2]
+        counter_address = self.arguments[3]
+
+        label_names = {
+            "loop": f":for_loop_{id(self)}",
+            "end": f":for_loop_end_{id(self)}",
+        }
+
+        self.instructions += [
+            ["swv", counter_address],
+            ["stv", start_number],
+
+            # Loop
+            [label_names["loop"], 0],
+
+            # Get counter value
+            ["adr", counter_address],
+            ["lda", 0],
+
+            # Call loop body
+            ["jsr", label_name],
+
+            # Get counter value
+            ["srv", counter_address],
+            ["lda", 0],
+
+            # Increment counter
+            ["dec", 1],
+            ["mca", 0],
+            ["sta", 0],
+            ["enc", end_number],
+            # Exit or loop back
+            ["jio", label_names["end"]],
+            ["jmp", label_names["loop"]],
+            [label_names["end"], 0],
+        ]
+
         self.success = True
-        pass
+        return
 
 
 ###############

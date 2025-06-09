@@ -118,22 +118,15 @@ while i < len(read_lines):
 
     # Increase the index of every line after the macro
     for line_index, line in enumerate(read_lines):
-        if line_index >= i + macro_index + 1 and line["index"] > insertion_line_index:
+        if line_index >= i + inserted_code_length + 1 and line["index"] > insertion_line_index:
             line["index"] = line_index
 
-    i += macro_index + 1
+    i += inserted_code_length
+
+for data in read_lines:
+    print(data)
 
 print(f"--- Compiling: {AQUA}{arguments.input_file}{WHITE}")
-
-def parseNumber(number : str, throwError = False) -> int:
-    if "0b" in number: return int(number, base=2)
-    if "0x" in number: return int(number, base=16)
-
-    if throwError:
-        return int(number, base=10)
-    else:
-        try: return int(number, base=10)
-        except: return 0
 
 #Scanning for labels, constants and macros
 special_offset = 0 # Offset caused by labels, constants or macros (whole empty line)

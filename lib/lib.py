@@ -39,6 +39,16 @@ def binToDec(number : str):
 def decToBin(number : int, length : int = 8):
     return (bin(number).replace('0b', '').rjust(length, "0")+".")[-length-1:-1]
 
+def parseNumber(number : str, throwError = False) -> int:
+    if "0b" in number: return int(number, base=2)
+    if "0x" in number: return int(number, base=16)
+
+    if throwError:
+        return int(number, base=10)
+    else:
+        try: return int(number, base=10)
+        except: return 0
+
 def trimToSize(number : int, size : int) -> int:
     return binToDec(decToBin(number, size))
 

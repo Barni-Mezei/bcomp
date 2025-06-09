@@ -1,63 +1,169 @@
-# Bcomp assembly - syntax
+# Bcomp assembly 2.0 - macros
 
-## Quick guide
-- Instructions: `mva 0`
-- Comments: `add ; Cool code`
-- Labels: `:loop` `jmp :loop`
-- Constants: `$magic_number 13` `mvb $magic_number`
-- Macros: `#loadStr "Hello, world!" 0`
+## loadStr
+`#loadStr "<string>" <start address>`
 
-## Versions
+### Arguments
+- string: A chain of characters, in double quotes.
+- start address: The memory address of the first character
 
-The *bcomp assembly* has many versions, for many architectures, and platforms.
+### Description
+This macro will load a string of text in to the memory, starting at the specified address, and putting each character after the previous one.
 
-- `1.0`: Architecture: 1.0, Platform: Scrap Mechanic computer
-- `1.1`: Architecture: 1.0, Platform: Scrap Mechanic computer 1.1, bcomp_vm_asm1.1
-- ~`2.0`: Architecture: ~2.0, Platform: bcomp_vm_asm2.0, Arduino UNO, Texas Instruments TI-84 Plus Python edition
+### Structure
+The macro places 2 instructions after one a nother:
 
-## Comments
-Commants in this language, will be completely ignored during compilation. A comment starts with a `;` character and spans until the end of the line.
+```
+swv <address>
+stv <char code>
+```
 
-## Instructions
-The format of an instruction is the following: `instruction argument`. Note that the space is nescesseary between the instruction and the argument. An instruction is always 3 letters long and contains only letters. The case does not matter, `mCa` and `MCa` are the same.
+### Example
 
-Arguments must be numbers. The assembler accepts 3 formats for numbers: decimal (`23`) binary (prefixed with `0b`: `0b1001`) and hexadecimal (prefixed with `0x`:`0xf8`). If a command does not need an argument, you can still specify it, but will be ignored, or you can omit it entirely. Omitted arguments will be compiled as 0.
+```
+;asm 2.0
 
-To learn, what instruction does what, and how the architecture was built, you can take a look at the files, in the doc folder. Specifically, the architecture pngs and the Bcomp - Assembly csvs.
+#loadStr "Hello, world!\n" 0
 
-## Special functionality
-
-### Labels
-
-#### Functionality
-Labels, hold the line number, they are created in, so they can be later used in jumps, or conditional jumps.
-
-#### Creating labels
-To create a label, start by typing a `:` then the name of the label, like this: `:loop`. Label names must be a single word (without any whitespace), but can contain any characters.
-
-#### Using a label's value
-The value of a label, can only be used as an argument to an instruction. Simply type the name of the label, prefixed with a `:`, like this: `JMP :<label name>`. The label's name will be replaced with the label's value (the line number it was created in) during compilation.
-
-
-### Constants
-
-#### Functionality
-Constants allow you to "name a value". You can specify a name and an associated value to it.
-
-#### Creating constants
-If creating a constant you must prefix the name with a `$`, the specify a value to it, like this: `$special_address 6`. The specified value can be any number (in decimal, binary, or hexadecimal format), or a single character, enclsed in `"` double quotes. Example: `$letter_a "a"` If a character is specified, then the constant's value will be the character code of the specified character. In the case of multiple specified characters, then the first one will be used.
-
-#### Using constants
-You can use constants only as arguments to instructions. This works like the following: `MVA $letter_a`, where "$letter_a" will be replaced with 97, beacuse at the crateion of this constant we typed: `$letter_a "a"` which, stores the character code of the letter "a", which is 97.
+```
+```
+Memory after the execution:
+0: 72  (ascii code of 'H')
+1: 101 (ascii code of 'e')
+2: 108 (ascii code of 'l')
+3: 108 (ascii code of 'l')
+4: 111 (ascii code of 'o')
+5: 444 (ascii code of ',')
+. . .
+```
 
 
-### Macros
- 
-#### Functionality
-Macros allow you to shorten long sequences of instructions.
 
-### Using macros
-To use a macro, you have to type it's name, prefixed by a `#`, like this: `$loadStr`, then you can specify thearguments to it. Be aware, that the arguments of a macro, is defined entirely inside the macro.
+## printStr
+`#printStr <start address> <length> <counter address>`
 
-#### Creating macros
-To create a custom macro, or edit an existing one, you have to do it in python. For the macro creation, please read [this](doc/macro_creation.md) guide
+### Arguments
+- start address: The memory address of the first character
+- length: The number of characters of the string
+- counter address: A memory address, that can be used as a for loop's counter.
+
+### Description
+The macro will loop over each address in the memory, and prints it's content to **port2** (character output).
+
+### Structure
+The macro creates a simple loop, that iterates over the addresses, using the specified memory address as the loop counter.
+
+```
+swv <counter address>
+stv 0
+:loop
+; load counter
+adr <counter address>
+lda
+; Load character
+sra
+lda
+out 2
+; load counter again
+srv <counter address>
+lda
+; increment counter
+inc 1
+mca
+sta
+enc <start index + length>
+jio :end
+jmp :loop
+:end
+```
+
+### Example
+
+```
+;asm 2.0
+
+#loadStr "Hello, world!\n" 0
+#printStr 0 13 15
+```
+
+
+
+## forLoop
+`#forLoop <start number> <end number> <label name> <counter address>`
+
+### Arguments
+- start number: Start of the iteration counter
+- end number: End of the iteration counter
+- label name: The name of a label, that will be called, in every iteration
+- counter address: The memory address, that is used as a loop counter.
+
+### Description
+This macro wil create a loop, that runs `end number - start number` times, and jumps to the specified label. Each iteration, incerases the counter by 1 and before jumping to the label, the loop counter's value will be passed to the A register. The loop counter includes `start number` and `end number - 1`
+
+### Structure
+The macro creates a loop, very similar to the `#printStr`.
+
+```
+swv <counter address>
+stv <start number>
+:loop
+; load counter
+adr <counter address>
+lda
+; Jump to label
+jsr <label name>
+; load counter again
+srv <counter address>
+lda
+; increment counter
+inc 1
+mca
+sta
+enc <end number>
+jio :end
+jmp :loop
+:end
+```
+
+### Example
+
+```
+;asm 2.0
+
+#forLoop 0 5 :fn 15
+
+; Here, register A will hold numbers from 0 to 4
+:fn
+out 0
+rtn
+```
+
+
+
+## reverseForLoop
+`#reverseForLoop <start number> <end number> <label name> <counter address>`
+
+### Arguments
+- start number: Start of the iteration counter
+- end number: End of the iteration counter
+- label name: The name of a label, that will be called, in every iteration
+- counter address: The memory address, that is used as a loop counter.
+
+### Description
+Same a s afor loop, but it counts down by 1 in each iteration. The loop counter includes `start number` and `end number + 1`
+
+### Structure
+Same as the `#forLoop` but with a `dec 1`
+
+### Example
+
+```
+;asm 2.0
+
+#reverseForLoop 5 0 :fn 15
+
+; Here, register A will hold numbers from 5 to 1
+:fn
+out 0
+rtn
+```
