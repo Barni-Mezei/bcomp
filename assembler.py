@@ -39,12 +39,22 @@ commands, command_lookup = load_commands(True)
 out = []
 labels = {}
 constants = {}
+built_in = {
+    "RSYS": 0,
+    "RA": 1,
+    "RB": 2,
+    "RC": 3,
+    "RX": 4,
+    "RY": 5,
+    "RRADR": 6,
+    "RADR": 6,
+    "RWADR": 7,
+}
 
 read_lines = []
 
 ASM_VERSION = arguments.version
-
-MACRO = None
+MACRO = None # The dynamically loaded python macro library
 
 print(f"--- Preprocessing: {AQUA}{arguments.input_file}{WHITE}")
 try:
@@ -63,16 +73,22 @@ try:
 
             tokens = []
             for t in line.split(" "):
-                if t[0] == ";": break
+                if len(t) > 0 and t[0] == ";": break
                 tokens.append(t)
 
-            # Fix single characters
+            # Fix literal spaces (" ")
             for i, t in enumerate(tokens):
-                if t[-1] == '"' and tokens[i-1][0] == '"':
-                    print("Match!", t, tokens[i-1])
+                if t == '"' and tokens[i-1] == '"':
                     tokens.insert(i-1, t + " " + tokens.pop(i))
                     tokens.pop(i)
 
+            # Join separated arguments, if not in string or is macro
+            if tokens[0][0] != "#" and len(tokens) > 2:
+                if len(tokens[1]) > 0 and tokens[1][0] != '"' and tokens[1][-1] == ',':
+                    print("Comma!", tokens[1], tokens[2])
+                    tokens.insert(1, [tokens.pop(1)[:-1:], tokens.pop(1)])
+
+            # make it min. 2 tokens, and wrap 2nd token
             if len(tokens) == 1: tokens.append("0")
             if tokens[1] == "" or tokens[1] == ";": tokens[1] = "0"
 
@@ -85,7 +101,6 @@ try:
 except FileNotFoundError as e:
     print(f"{RED}File not found!{WHITE}")
     exit()
-
 
 ASM_VERSION = ASM_VERSION.strip()
 print(f"--- Importing macros for assembly version: {AQUA}{ASM_VERSION}{WHITE}")
@@ -128,8 +143,9 @@ while i < len(read_lines):
 # Fix line indexes
 for i, line in enumerate(read_lines): line["index"] = i
 
-for data in read_lines:
-    print(data)
+#for data in read_lines:
+#    print(data)
+#exit()
 
 print(f"--- Compiling: {AQUA}{arguments.input_file}{WHITE}")
 
@@ -157,15 +173,19 @@ for i, data in enumerate(read_lines):
         special_offset += 1
         continue
 
+    #Is built-in constant?
+    if ins[0] == "R":
+        print(f"{WHITE}Built-in constant found: {AQUA}{ins}{WHITE} value: {GRAY}{arg}")
+        if arg[0] == '"': constants[special_name] = ord(arg[1:-1:][0]) # Get character index
+        else: constants[special_name] = parseNumber(arg)
+        special_offset += 1
+        continue
+
 # Reaplace label, constant and word values
 for _, data in enumerate(read_lines):
     index = data["index"]
     ins = data["tokens"][0]
     arg = data["tokens"][1]
-
-    label_arg = arg.replace(":", "")
-    constant_arg = arg.replace("$", "")
-    macro_name = ins[1::]
 
     print(f"{GRAY}{index:03d}: {AQUA}{ins}\t{WHITE}{arg}")
 
@@ -182,31 +202,60 @@ for _, data in enumerate(read_lines):
         print(f"{RED}ERROR: Unrecognised keyword: '{ins.upper()}'!{WHITE}")
         exit()
 
-    #Replace label value in argument
-    if arg[0] == ":":
-        if not label_arg in labels:
-            print(f"{RED}ERROR: Unrecognised label: {WHITE}{label_arg}")
+    # Convert string arguments to list
+    if type(arg) == str: arg = [arg]
+
+    # Replace values in all arguments
+    for i, a in enumerate(arg):
+        label_arg = a.replace(":", "")
+        constant_arg = a.replace("$", "")
+        built_in_arg = a
+
+        #Replace label value in argument
+        if a[0] == ":":
+            if not label_arg in labels:
+                print(f"{RED}ERROR: Unrecognised label: {WHITE}{label_arg}")
+                exit()
+
+            arg[i] = str(labels[label_arg])
+            print(f"{GRAY}Replacing label {AQUA}{label_arg}{GRAY} with {WHITE}{labels[label_arg]}")
+
+        #Replace constant value in argument
+        if a[0] == "$":
+            if not constant_arg in constants:
+                print(f"{RED}ERROR: Unrecognised constant: {WHITE}{constant_arg}")
+                exit()
+
+            arg[i] = str(constants[constant_arg])
+            print(f"{GRAY}Replacing constant {AQUA}{constant_arg}{GRAY} with {WHITE}{constants[constant_arg]}")
+
+        #Replace built-in constant value in argument
+        if a[0] == "R":
+            if not built_in_arg in built_in:
+                print(f"{RED}ERROR: Unrecognised built-in value: {WHITE}{built_in_arg}")
+                exit()
+
+            arg[i] = str(built_in[built_in_arg])
+            print(f"{GRAY}Replacing built-in value {AQUA}{built_in_arg}{GRAY} with {WHITE}{built_in[built_in_arg]}")
+
+   
+
+    #Append command index
+    out.append(commands[ins][0]) 
+
+    # Join values to a single number and append argument
+    bin_arg = ""
+    for i, a in enumerate(arg):
+        #print(i, "a:", a)
+        try:
+            bin_arg += decToBin(parseNumber(a, throwError = True), 16 // len(arg))
+        except Exception as e:
+            print(f"{RED}ERROR: Invalid argument! (Numbers only){WHITE}")
             exit()
 
-        arg = str(labels[label_arg])
-        print(f"{GRAY}Replacing label {AQUA}{label_arg}{GRAY} with {WHITE}{labels[label_arg]}")
+    #print("bin_arg", bin_arg)
 
-    #Replace constant value in argument
-    if arg[0] == "$":
-        if not constant_arg in constants:
-            print(f"{RED}ERROR: Unrecognised constant: {WHITE}{constant_arg}")
-            exit()
-
-        arg = str(constants[constant_arg])
-        print(f"{GRAY}Replacing constant {AQUA}{constant_arg}{GRAY} with {WHITE}{constants[constant_arg]}")
-
-    out.append(commands[ins][0]) #Append command index
-    #Append argument
-    try:
-        out.append(str(parseNumber(arg, throwError = True)))
-    except Exception as e:
-        print(f"{RED}ERROR: Invalid argument! (Must be a number){WHITE}")
-        exit()
+    out.append(binToDec(bin_arg))
 
 #Writing to file
 def path_leaf(path):

@@ -103,10 +103,13 @@ def getMnemonic(binNumber : str):
     return command_lookup[binToDec(binNumber)]
 
 def getReg(reg_index : int) -> int:
-    return registers[registers.keys()[reg_index]]
+    return registers[list(registers.keys())[reg_index]]
+
+def getRegKey(reg_index : int) -> int:
+    return list(registers.keys())[reg_index]
 
 def getRegName(reg_index : int) -> int:
-    return registers.keys()[reg_index].upper()
+    return "R" + list(registers.keys())[reg_index].upper()
 
 def bitwiseNot(number : int, length : int = NUMBER_OF_BITS) -> int:
     out = list(decToBin(number, length))
@@ -208,13 +211,13 @@ def executeLine(index : int) -> str:
                 result = trimToSize(result, NUMBER_OF_BITS)
                 flags['overflow'] = True
 
-            registers[getRegName(arg1)] = result
+            registers[getRegKey(arg1)] = result
 
         case "inc":
             if local_debug:
                 print(f"- Incrementing {getRegName(arg1)} by {arg2}")
 
-            result = registers[getRegName(arg1)] + arg2
+            result = getReg(arg1) + arg2
 
             flags['negative'] = False
             flags['overflow'] = False
@@ -224,7 +227,7 @@ def executeLine(index : int) -> str:
                 result = trimToSize(result, NUMBER_OF_BITS)
                 flags['overflow'] = True
 
-            registers[getRegName(arg1)] = result
+            registers[getRegKey(arg1)] = result
 
         case "sub":
             if local_debug:
@@ -244,13 +247,13 @@ def executeLine(index : int) -> str:
                 result = trimToSize(result, NUMBER_OF_BITS)
                 flags['overflow'] = True
 
-            registers[getRegName(arg1)] = result
+            registers[getRegKey(arg1)] = result
 
         case "dec":
             if local_debug:
                 print(f"- Decrementing {getRegName(arg1)} by {arg2}")
 
-            result = registers[getRegName(arg1)] - arg2
+            result = getReg(arg1) - arg2
 
             flags['negative'] = False
             flags['overflow'] = False
@@ -264,7 +267,7 @@ def executeLine(index : int) -> str:
                 result = trimToSize(result, NUMBER_OF_BITS)
                 flags['overflow'] = True
 
-            registers[getRegName(arg1)] = result
+            registers[getRegKey(arg1)] = result
 
         case "bor":
             if local_debug:
@@ -275,7 +278,7 @@ def executeLine(index : int) -> str:
             flags['overflow'] = False
             flags['zero'] = result == 0
 
-            registers[getRegName(arg1)] = result
+            registers[getRegKey(arg1)] = result
 
         case "set":
             if local_debug:
@@ -297,7 +300,7 @@ def executeLine(index : int) -> str:
             flags['overflow'] = False
             flags['zero'] = result == 0
 
-            registers[getRegName(arg1)] = result
+            registers[getRegKey(arg1)] = result
 
         case "msk":
             if local_debug:
@@ -319,7 +322,7 @@ def executeLine(index : int) -> str:
             flags['overflow'] = False
             flags['zero'] = result == 0
 
-            registers[getRegName(arg1)] = result
+            registers[getRegKey(arg1)] = result
 
         case "enc":
             if local_debug:
@@ -341,7 +344,7 @@ def executeLine(index : int) -> str:
             flags['overflow'] = False
             flags['zero'] = result == 0
 
-            registers[getRegName(arg1)] = result
+            registers[getRegKey(arg1)] = result
 
         case "shr":
             if local_debug:
@@ -352,7 +355,7 @@ def executeLine(index : int) -> str:
             flags['overflow'] = False
             flags['zero'] = result == 0
 
-            registers[getRegName(arg1)] = result
+            registers[getRegKey(arg1)] = result
 
         case "shl":
             if local_debug:
@@ -363,7 +366,7 @@ def executeLine(index : int) -> str:
             flags['overflow'] = False
             flags['zero'] = result == 0
 
-            registers[getRegName(arg1)] = result
+            registers[getRegKey(arg1)] = result
 
         case "cmp":
             if local_debug:
@@ -391,12 +394,12 @@ def executeLine(index : int) -> str:
             result[-2] = flags["negative"]
             result[-3] = flags["carry"]
 
-            registers[getRegName(arg1)] = binToDec(result)
+            registers[getRegKey(arg1)] = binToDec(result)
 
         case "lda":
             if local_debug:
                 print(f"- Reading from memory[{registers['radr']}] ({memory[registers['radr']]}) to {getRegName(arg1)}")
-            registers[getRegName(arg1)] = memory[registers['radr']]
+            registers[getRegKey(arg1)] = memory[registers['radr']]
 
         case "stv":
             if local_debug:
@@ -418,19 +421,19 @@ def executeLine(index : int) -> str:
             if local_debug:
                 print(f"- Pushing RSYS ({registers['sys']}) to stack")
 
-            pushToStack(registers["sys"], "a")
+            pushToStack(registers["sys"], "data")
 
         case "psh":
             if local_debug:
                 print(f"- Pushing {getRegName(arg1)} ({getReg(arg1)}) to stack")
 
-            pushToStack(getReg(arg1), "a")
+            pushToStack(getReg(arg1), "data")
 
         case "pop":
             if local_debug:
                 print(f"- Popping value from stack ({stacks['data'][-1]}) to {getRegName(arg1)}")
 
-            registers[getRegName(arg1)] = popFromStack("data")
+            registers[getRegKey(arg1)] = popFromStack("data")
 
         case "jmp":
             if local_debug:
@@ -488,7 +491,7 @@ def executeLine(index : int) -> str:
 
             if local_debug:
                 print(f"- Inputting from port[{arg2}] ({ports['input'][arg2][1]}) to {getRegName(arg1)}")
-            registers[getRegName(arg1)] = ports['input'][arg2][1]
+            registers[getRegKey(arg1)] = ports['input'][arg2][1]
 
         case "hlt":
             if local_debug:
@@ -611,9 +614,9 @@ def commandDumpRam():
 
 def commandDumpReg():
     print("Registers:")
-    for i, name in enumerate(registers):
+    for name in registers:
         value = registers[name]
-        print(f"{i}: {AQUA}{name.ljust(5, ' ')} {WHITE}{value:<5d} {GRAY}{decToBin(value, NUMBER_OF_BITS)}{WHITE}")
+        print(f"{registers.get(name)}: {AQUA}{name.ljust(5, ' ')} {WHITE}{value:<5d} {GRAY}{decToBin(value, NUMBER_OF_BITS)}{WHITE}")
 
 def commandDumpPort():
     print(f"{AQUA}Input ports:             Output ports:")
@@ -628,19 +631,19 @@ def commandDumpPort():
 
 def commandDumpStacks():
     print(f"The call stack ({len(stacks["call"])}):")
-    for i, line in enumerate(stacks["call"]):
+    for i, line in enumerate(stacks["call"]["value"]):
         print(f"{i:>3d}: {AQUA}{line}{WHITE}")
 
     print(f"The data stack ({len(stacks["data"])}):")
-    for i, line in enumerate(stacks["data"]):
+    for i, line in enumerate(stacks["data"]["value"]):
         print(f"{i:>3d}: {AQUA}{line}{WHITE}")
 
     print(f"The interrupt address stack ({len(stacks["int_adr"])}):")
-    for i, line in enumerate(stacks["int_adr"]):
+    for i, line in enumerate(stacks["int_adr"]["value"]):
         print(f"{i:>3d}: {AQUA}{line}{WHITE}")
 
     print(f"The interrupt register stack ({len(stacks["int_reg"])}):")
-    for i, line in enumerate(stacks["int_reg"]):
+    for i, line in enumerate(stacks["int_reg"]["value"]):
         print(f"{i:>3d}: {AQUA}{line}{WHITE}")
 
 def commandDebugOn():
