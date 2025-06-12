@@ -24,12 +24,14 @@ devices = {
 }
 
 registers = {
+    'sys': 0,
     'a': 0,
     'b': 0,
-    'ac': 0,
-    'wadr': 0,
+    'c': 0,
+    'x': 0,
+    'y': 0,
     'radr': 0,
-    'arg': 0,
+    'wadr': 0,
     'ins': 0,
 }
 
@@ -41,11 +43,27 @@ flags = {
 
 rom = []
 memory = []
-call_stack = []
 
-stack = {
-    "a": [],
-    "b": [],
+stacks = {
+    "call": {
+        "size": 32,
+        "value": [],
+    },
+
+    "data": {
+        "size": 32,
+        "value": [],
+    },
+
+    "int_reg": {
+        "size": 32,
+        "value": [],
+    },
+
+    "int_adr": {
+        "size": 8,
+        "value": [],
+    },
 }
 
 ports = {
@@ -81,7 +99,6 @@ def loadProgram(file_path):
             rom.append([arg, ins])
             break_points.append(0)
 
-
 def getMnemonic(binNumber : str):
     return command_lookup[binToDec(binNumber)]
 
@@ -95,10 +112,11 @@ def initialiseMemory():
     return [0 for _ in range(0, 256)]
 
 def pushToStack(value : int, stack_name : str):
-    stack[stack_name].append(value)
+    if len(stacks[stack_name]["value"]) < stacks[stack_name]["size"]:
+        stacks[stack_name]["value"].append(value)
 
 def popFromStack(stack_name : str):
-    if len(stack[stack_name]) > 0: return stack[stack_name].pop()
+    if len(stacks[stack_name]["value"]) > 0: return stacks[stack_name]["value"].pop()
     else: return 0
 
 ############################################
@@ -112,9 +130,12 @@ def executeLine(index : int) -> str:
     global has_jumped
 
     #Read command
-    registers['arg'] = binToDec(rom[counter][0])
+    registers['sys'] = binToDec(rom[counter][0])
     registers['ins'] = binToDec(rom[counter][1])
     mnemonic = command_lookup[registers['ins']]
+
+    arg1 = binToDec(rom[counter][0][0:8])
+    arg2 = binToDec(rom[counter][0][9::])
 
     local_debug = debug or break_points[index] != 0
     has_jumped = False
@@ -127,35 +148,50 @@ def executeLine(index : int) -> str:
             if local_debug: print("- Doing nothing")
             sleep(0.1)
         
-        case "mva":
+        case "sta":
             if local_debug:
-                print(f"- Loading {registers['arg']} to RA")
-            registers['a'] = registers['arg']
+                print(f"- Setting RA to RSYS ({registers['sys']})")
+            registers['a'] = registers['sys']
 
-        case "mvb":
+        case "stb":
             if local_debug:
-                print(f"- Loading {registers['arg']} to RB")
-            registers['b'] = registers['arg']
+                print(f"- Setting RB to RSYS ({registers['sys']})")
+            registers['b'] = registers['sys']
 
-        case "mab":
+        case "stc":
             if local_debug:
-                print(f"- Loading RA ({registers['a']}) to RB")
-            registers['b'] = registers['a']
+                print(f"- Setting RC to RSYS ({registers['sys']})")
+            registers['c'] = registers['sys']
 
-        case "mba":
+        case "stx":
             if local_debug:
-                print(f"- Loading RB ({registers['a']}) to RA")
-            registers['a'] = registers['b']
+                print(f"- Setting RX to RSYS ({registers['sys']})")
+            registers['x'] = registers['sys']
 
-        case "mca":
+        case "sty":
             if local_debug:
-                print(f"- Loading RAC ({registers['ac']}) to RA")
-            registers['a'] = registers['ac']
+                print(f"- Setting RY to RSYS ({registers['sys']})")
+            registers['y'] = registers['sys']
 
-        case "mcb":
+        case "str":
             if local_debug:
-                print(f"- Loading RAC ({registers['ac']}) to RB")
-            registers['b'] = registers['ac']
+                print(f"- Setting RRADR to RSYS ({registers['sys']})")
+            registers['radr'] = registers['sys']
+
+        case "stw":
+            if local_debug:
+                print(f"- Setting RWADR to RSYS ({registers['sys']})")
+            registers['wadr'] = registers['sys']
+
+
+
+
+
+
+
+
+
+
 
         case "add":
             if local_debug:
@@ -174,9 +210,9 @@ def executeLine(index : int) -> str:
 
         case "inc":
             if local_debug:
-                print(f"- Incrementing RA ({registers['a']}) by RARG ({registers['arg']}) [a+arg]")
+                print(f"- Incrementing RA ({registers['a']}) by RARG ({registers['sys']}) [a+arg]")
 
-            registers['ac'] = registers['a'] + registers['arg']
+            registers['ac'] = registers['a'] + registers['sys']
 
             flags['negative'] = False
             flags['overflow'] = False
@@ -208,9 +244,9 @@ def executeLine(index : int) -> str:
 
         case "dec":
             if local_debug:
-                print(f"- Decrementing RA ({registers['a']}) by RARG ({registers['arg']}) [a-arg]")
+                print(f"- Decrementing RA ({registers['a']}) by RARG ({registers['sys']}) [a-arg]")
 
-            registers['ac'] = registers['a'] - registers['arg']
+            registers['ac'] = registers['a'] - registers['sys']
 
             flags['negative'] = False
             flags['overflow'] = False
@@ -236,8 +272,8 @@ def executeLine(index : int) -> str:
 
         case "set":
             if local_debug:
-                print(f"- Setting RAC to RA ({registers['a']}) OR RARG ({registers['arg']}) [a|arg]")
-            registers['ac'] = registers['a'] | registers['arg']
+                print(f"- Setting RAC to RA ({registers['a']}) OR RARG ({registers['sys']}) [a|arg]")
+            registers['ac'] = registers['a'] | registers['sys']
 
             flags['negative'] = False
             flags['overflow'] = False
@@ -254,8 +290,8 @@ def executeLine(index : int) -> str:
 
         case "msk":
             if local_debug:
-                print(f"- Masking RA ({registers['a']}) with RARG ({registers['arg']}) [a&arg]")
-            registers['ac'] = registers['a'] & registers['arg']
+                print(f"- Masking RA ({registers['a']}) with RARG ({registers['sys']}) [a&arg]")
+            registers['ac'] = registers['a'] & registers['sys']
 
             flags['negative'] = False
             flags['overflow'] = False
@@ -272,8 +308,8 @@ def executeLine(index : int) -> str:
 
         case "enc":
             if local_debug:
-                print(f"- Encrypting RA ({registers['a']}) with key RARG ({registers['arg']}) [a|arg]")
-            registers['ac'] = registers['a'] ^ registers['arg']
+                print(f"- Encrypting RA ({registers['a']}) with key RARG ({registers['sys']}) [a|arg]")
+            registers['ac'] = registers['a'] ^ registers['sys']
 
             flags['negative'] = False
             flags['overflow'] = False
@@ -308,11 +344,11 @@ def executeLine(index : int) -> str:
 
         case "cmp":
             if local_debug:
-                print(f"- Comapring RA ({registers['a']}) to RARG ({registers['arg']})")
+                print(f"- Comapring RA ({registers['a']}) to RARG ({registers['sys']})")
 
             registers['ac'] = 0
-            if registers['a'] < registers['arg']: registers['ac'] = 1
-            if registers['a'] > registers['arg']: registers['ac'] = 2
+            if registers['a'] < registers['sys']: registers['ac'] = 1
+            if registers['a'] > registers['sys']: registers['ac'] = 2
 
             flags['negative'] = False
             flags['overflow'] = False
@@ -320,14 +356,14 @@ def executeLine(index : int) -> str:
 
         case "adr":
             if local_debug:
-                print(f"- Setting both addresses to RARG ({registers['arg']})")
-            registers['wadr'] = trimToSize(registers['arg'], NUMBER_OF_BITS)
-            registers['radr'] = trimToSize(registers['arg'], NUMBER_OF_BITS)
+                print(f"- Setting both addresses to RARG ({registers['sys']})")
+            registers['wadr'] = trimToSize(registers['sys'], NUMBER_OF_BITS)
+            registers['radr'] = trimToSize(registers['sys'], NUMBER_OF_BITS)
 
         case "srv":
             if local_debug:
-                print(f"- Setting read address from RARG ({registers['arg']})")
-            registers['radr'] = trimToSize(registers['arg'], NUMBER_OF_BITS)
+                print(f"- Setting read address from RARG ({registers['sys']})")
+            registers['radr'] = trimToSize(registers['sys'], NUMBER_OF_BITS)
 
         case "sra":
             if local_debug:
@@ -336,8 +372,8 @@ def executeLine(index : int) -> str:
 
         case "swv":
             if local_debug:
-                print(f"- Setting write address from RARG ({registers['arg']})")
-            registers['wadr'] = trimToSize(registers['arg'], NUMBER_OF_BITS)
+                print(f"- Setting write address from RARG ({registers['sys']})")
+            registers['wadr'] = trimToSize(registers['sys'], NUMBER_OF_BITS)
 
         case "swa":
             if local_debug:
@@ -356,8 +392,8 @@ def executeLine(index : int) -> str:
 
         case "stv":
             if local_debug:
-                print(f"- Writing to memory[{registers['wadr']}] = RARG ({registers['arg']})")
-            memory[registers['wadr']] = registers['arg']
+                print(f"- Writing to memory[{registers['wadr']}] = RARG ({registers['sys']})")
+            memory[registers['wadr']] = registers['sys']
 
         case "sta":
             if local_debug:
@@ -377,38 +413,38 @@ def executeLine(index : int) -> str:
 
         case "jmp":
             if local_debug:
-                print(f"- Jumping to address {registers['arg']}")
-            counter = registers['arg'] - 1
+                print(f"- Jumping to address {registers['sys']}")
+            counter = registers['sys'] - 1
             has_jumped = True
 
         case "jsr":
             if local_debug:
-                print(f"- Jumping to subroutine {registers['arg']}, pushing to stack: {counter}")
-            call_stack.append(counter)
-            counter = registers['arg'] - 1
+                print(f"- Jumping to subroutine {registers['sys']}, pushing to stack: {counter}")
+            pushToStack(counter, "call")
+            counter = registers['sys'] - 1
             has_jumped = True
 
         case "jic":
             if local_debug:
-                print(f"- Jumping to address {registers['arg']} condition: overflow value: {flags['overflow']}")
-            if flags['overflow']: counter = registers['arg'] - 1
+                print(f"- Jumping to address {registers['sys']} condition: overflow value: {flags['overflow']}")
+            if flags['overflow']: counter = registers['sys'] - 1
 
         case "jin":
             if local_debug:
-                print(f"- Jumping to address {registers['arg']} condition: negative value: {flags['negative']}")
+                print(f"- Jumping to address {registers['sys']} condition: negative value: {flags['negative']}")
             if flags['negative']:
-                counter = registers['arg'] - 1
+                counter = registers['sys'] - 1
                 has_jumped = True
 
         case "jio":
             if local_debug:
-                print(f"- Jumping to address {registers['arg']} condition: null value: {flags['zero']}")
+                print(f"- Jumping to address {registers['sys']} condition: null value: {flags['zero']}")
             if flags['zero']:
-                counter = registers['arg'] - 1
+                counter = registers['sys'] - 1
                 has_jumped = True
 
         case "rtn":
-            return_address = call_stack.pop()
+            return_address = popFromStack("call")
             if local_debug:
                 print(f"- Returning to address {return_address}")
             counter = return_address #No -1 because it will continue on the next line (the curent address wa pushed, JSR would run again)
@@ -416,25 +452,25 @@ def executeLine(index : int) -> str:
 
         case "out":
             if local_debug:
-                print(f"- Outputting to port[{registers['arg']}] from RA ({registers['a']})")
-            ports['output'][registers['arg']] = [True, registers['a']]
+                print(f"- Outputting to port[{registers['sys']}] from RA ({registers['a']})")
+            ports['output'][registers['sys']] = [True, registers['a']]
 
         case "inp":
-            handleInputDevices(registers['arg'])
+            handleInputDevices(registers['sys'])
 
             if local_debug:
-                print(f"- Inputting from port[{registers['arg']}] ({ports['input'][registers['arg']][1]}) to RA")
-            registers['a'] = ports['input'][registers['arg']][1]
+                print(f"- Inputting from port[{registers['sys']}] ({ports['input'][registers['sys']][1]}) to RA")
+            registers['a'] = ports['input'][registers['sys']][1]
 
         case "pva":
             if local_debug:
-                print(f"- Pushing RARG ({registers['arg']}) to stack A")
+                print(f"- Pushing RARG ({registers['sys']}) to stack A")
 
             pushToStack(registers["arg"], "a")
 
         case "pvb":
             if local_debug:
-                print(f"- Pushing RARG ({registers['arg']}) to stack B")
+                print(f"- Pushing RARG ({registers['sys']}) to stack B")
 
             pushToStack(registers["arg"], "b")
 
@@ -548,7 +584,7 @@ def commandHelp():
     print(f"{AQUA}dump ram {GRAY}Gives info about the RAM{WHITE}")
     print(f"{AQUA}dump reg {GRAY}Gives info about the registers{WHITE}")
     print(f"{AQUA}dump port {GRAY}Gives info about the ports{WHITE}")
-    print(f"{AQUA}dump stack {GRAY}Gives info about the stack{WHITE}")
+    print(f"{AQUA}dump stack {GRAY}Gives info about the stacks{WHITE}")
     print(f"{AQUA}debug on {GRAY}Turns on debug mode{WHITE}")
     print(f"{AQUA}debug off {GRAY}Turns off debug mode{WHITE}")
     print(f"{AQUA}breakpoint clear {GRAY}Removes all breakpoints{WHITE}")
@@ -587,12 +623,12 @@ def commandDumpRam():
 
 def commandDumpReg():
     print("Registers:")
-    for _, name in enumerate(registers):
+    for i, name in enumerate(registers):
         value = registers[name]
-        print(f"{AQUA}{name.ljust(3, ' ')} {WHITE}{value:<5d} {GRAY}{decToBin(value, NUMBER_OF_BITS)}{WHITE}")
+        print(f"{i}: {AQUA}{name.ljust(5, ' ')} {WHITE}{value:<5d} {GRAY}{decToBin(value, NUMBER_OF_BITS)}{WHITE}")
 
 def commandDumpPort():
-    print(       f"{AQUA}Input ports:             Output ports:")
+    print(f"{AQUA}Input ports:             Output ports:")
     print(f"{GRAY}0: {WHITE}Raw input (keys)      Raw output")
     print(f"{GRAY}1: {WHITE}Number input          Console (number)    {GRAY}(with new line){WHITE}")
     print(f"{GRAY}2: {WHITE}Milliseconds          Console (character) {GRAY}(without new line){WHITE}")
@@ -602,9 +638,21 @@ def commandDumpPort():
     print(f"{GRAY}6: {WHITE}-                     -")
     print(f"{GRAY}7: {WHITE}-                     -")
 
-def commandDumpStack():
-    print(f"The call stack ({len(call_stack)}):")
-    for i, line in enumerate(call_stack):
+def commandDumpStacks():
+    print(f"The call stack ({len(stacks["call"])}):")
+    for i, line in enumerate(stacks["call"]):
+        print(f"{i:>3d}: {AQUA}{line}{WHITE}")
+
+    print(f"The data stack ({len(stacks["data"])}):")
+    for i, line in enumerate(stacks["data"]):
+        print(f"{i:>3d}: {AQUA}{line}{WHITE}")
+
+    print(f"The interrupt address stack ({len(stacks["int_adr"])}):")
+    for i, line in enumerate(stacks["int_adr"]):
+        print(f"{i:>3d}: {AQUA}{line}{WHITE}")
+
+    print(f"The interrupt register stack ({len(stacks["int_reg"])}):")
+    for i, line in enumerate(stacks["int_reg"]):
         print(f"{i:>3d}: {AQUA}{line}{WHITE}")
 
 def commandDebugOn():
@@ -682,10 +730,16 @@ def commandReset():
     global counter
     global debug
     global memory
+    global registers
+    global stacks
 
     counter = 0
     debug = False
     memory = initialiseMemory()
+    
+    for r in registers: registers[r] = 0
+    for s in stacks: stacks[s]["value"] = []
+
     commandBreakpointClear()
 
 
@@ -723,7 +777,7 @@ while user_in != "exit":
     if user_in == "dump ram": commandDumpRam()
     if user_in == "dump reg": commandDumpReg()
     if user_in == "dump port": commandDumpPort()
-    if user_in == "dump stack": commandDumpStack()
+    if user_in == "dump stack": commandDumpStacks()
     if user_in == "debug on": commandDebugOn()
     if user_in == "debug off": commandDebugOff()
     if user_in == "reset": commandReset()
