@@ -38,7 +38,7 @@ Be careful tho, because if you hardcode the name of your labels, the next time y
 
 Let's say, you want a macro that outputs a letter to the character console.
 
-Start by locating the [`assembler_macros/v2_0/__init__.py`](doc/lua_compiler.md) file.
+Start by locating the [`assembler_macros/v2_0/__init__.py`](lua_compiler.md) file.
 
 Then scroll down, just abowe the commented "Main" part, and create a new class, with the name of your macro, as the class name, and make sure it inherits the Macro class.
 ```python
