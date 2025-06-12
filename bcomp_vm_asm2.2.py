@@ -4,6 +4,13 @@ import lib.matrixLib
 #import keyboard # type: ignore
 from time import sleep
 
+"""
+TODO: argparse:
+-r run code immediately, no debug
+-d run code immediately, with debug, stop at jumps (auto breakpoint)
+
+interrupts
+"""
 
 if len(sys.argv) > 1 and not ".o" in sys.argv[1]:
     print(f"{RED}Invalid or missing file type! (Must be .o){WHITE}")

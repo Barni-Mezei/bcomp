@@ -148,7 +148,6 @@ class printStr(Macro):
 
             # Get counter value
             ["str", counter_address],
-            ["stw", counter_address],
             ["lda", "RA"],
 
             # Output character at address
@@ -161,7 +160,7 @@ class printStr(Macro):
             #["lda", "RA"],
 
             # Increment counter
-            ["inc", ["RA", "1"]],
+            ["inc", ["RA", 1]],
             ["svr", "RA"],
             ["enc", start_address + length],
             # Exit or loop back
@@ -195,33 +194,47 @@ class forLoop(Macro):
             "end": f":for_loop_end_{id(self)}",
         }
 
+        # Save register values
         self.instructions += [
-            ["swv", counter_address],
-            ["stv", start_number],
+            ["psh", "RA"],
+            ["psh", "RRADR"],
+            ["psh", "RWADR"],
+        ]
+
+        self.instructions += [
+            ["stw", counter_address],
+            ["svv", start_number],
 
             # Loop
             [label_names["loop"], 0],
 
             # Get counter value
-            ["adr", counter_address],
-            ["lda", 0],
+            ["str", counter_address],
+            ["lda", "RA"],
 
             # Call loop body
             ["jsr", label_name],
 
             # Get counter value
-            ["srv", counter_address],
-            ["lda", 0],
+            ["str", counter_address],
+            ["lda", "RA"],
 
             # Increment counter
-            ["inc", 1],
-            ["mca", 0],
-            ["sta", 0],
+            ["inc", ["RA", 1]],
+            ["stw", counter_address],
+            ["svr", "RA"],
             ["enc", end_number],
             # Exit or loop back
             ["jio", label_names["end"]],
             ["jmp", label_names["loop"]],
             [label_names["end"], 0],
+        ]
+
+        # Save register values
+        self.instructions += [
+            ["pop", "RA"],
+            ["pop", "RRADR"],
+            ["pop", "RWADR"],
         ]
 
         self.success = True
@@ -241,33 +254,47 @@ class reverseForLoop(Macro):
             "end": f":for_loop_end_{id(self)}",
         }
 
+        # Save register values
         self.instructions += [
-            ["swv", counter_address],
-            ["stv", start_number],
+            ["psh", "RA"],
+            ["psh", "RRADR"],
+            ["psh", "RWADR"],
+        ]
+
+        self.instructions += [
+            ["stw", counter_address],
+            ["svv", end_number],
 
             # Loop
             [label_names["loop"], 0],
 
             # Get counter value
-            ["adr", counter_address],
-            ["lda", 0],
+            ["str", counter_address],
+            ["lda", "RA"],
 
             # Call loop body
             ["jsr", label_name],
 
             # Get counter value
-            ["srv", counter_address],
-            ["lda", 0],
+            ["str", counter_address],
+            ["lda", "RA"],
 
             # Increment counter
-            ["dec", 1],
-            ["mca", 0],
-            ["sta", 0],
-            ["enc", end_number],
+            ["dec", ["RA", 1]],
+            ["stw", counter_address],
+            ["svr", "RA"],
+            ["enc", start_number],
             # Exit or loop back
             ["jio", label_names["end"]],
             ["jmp", label_names["loop"]],
             [label_names["end"], 0],
+        ]
+
+        # Save register values
+        self.instructions += [
+            ["pop", "RA"],
+            ["pop", "RRADR"],
+            ["pop", "RWADR"],
         ]
 
         self.success = True
