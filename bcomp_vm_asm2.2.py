@@ -102,6 +102,12 @@ def loadProgram(file_path):
 def getMnemonic(binNumber : str):
     return command_lookup[binToDec(binNumber)]
 
+def getReg(reg_index : int) -> int:
+    return registers[registers.keys()[reg_index]]
+
+def getRegName(reg_index : int) -> int:
+    return registers.keys()[reg_index].upper()
+
 def bitwiseNot(number : int, length : int = NUMBER_OF_BITS) -> int:
     out = list(decToBin(number, length))
     for i, chr in enumerate(out):
@@ -183,233 +189,248 @@ def executeLine(index : int) -> str:
                 print(f"- Setting RWADR to RSYS ({registers['sys']})")
             registers['wadr'] = registers['sys']
 
-
-
-
-
-
-
-
-
-
+        case "mov":
+            if local_debug:
+                print(f"- Moving from register {arg1} ({getRegName(arg1)}) to register {arg2}")
+            registers['wadr'] = registers['sys']
 
         case "add":
             if local_debug:
-                print(f"- Adding RA ({registers['a']}) and RB ({registers['b']}) [a+b]")
+                print(f"- Adding RA ({registers['a']}) and RB ({registers['b']}) to {getRegName(arg1)}")
 
-            registers['ac'] = registers['a'] + registers['b']
+            result = registers['a'] + registers['b']
 
             flags['negative'] = False
             flags['overflow'] = False
+            flags['zero'] = result == 0
 
-            if registers['ac'] > MAX_NUMBER:
-                registers['ac'] = binToDec((bin(registers['ac']).replace("0b", "")+".")[-NUMBER_OF_BITS-1:-1])
+            if result >= MAX_NUMBER:
+                result = trimToSize(result, NUMBER_OF_BITS)
                 flags['overflow'] = True
 
-            flags['zero'] = registers['ac'] == 0
+            registers[getRegName(arg1)] = result
 
         case "inc":
             if local_debug:
-                print(f"- Incrementing RA ({registers['a']}) by RARG ({registers['sys']}) [a+arg]")
+                print(f"- Incrementing {getRegName(arg1)} by {arg2}")
 
-            registers['ac'] = registers['a'] + registers['sys']
+            result = registers[getRegName(arg1)] + arg2
 
             flags['negative'] = False
             flags['overflow'] = False
+            flags['zero'] = result == 0
 
-            if registers['ac'] > MAX_NUMBER:
-                registers['ac'] = binToDec((bin(registers['ac']).replace("0b", "")+".")[-NUMBER_OF_BITS-1:-1])
+            if result >= MAX_NUMBER:
+                result = trimToSize(result, NUMBER_OF_BITS)
                 flags['overflow'] = True
 
-            flags['zero'] = registers['ac'] == 0
+            registers[getRegName(arg1)] = result
 
         case "sub":
             if local_debug:
-                print(f"- Subtracting RB ({registers['b']}) from RA ({registers['a']}) [a-b]")
+                print(f"- Subtracting RB ({registers['b']}) from RA ({registers['a']}) to {getRegName(arg1)}")
 
-            registers['ac'] = registers['a'] - registers['b']
+            result = registers['a'] - registers['b']
 
             flags['negative'] = False
             flags['overflow'] = False
+            flags['zero'] = result == 0
 
-            if registers['ac'] < 0:
-                registers['ac'] = abs(registers['ac'])
+            if result < 0:
+                result = abs(result)
                 flags['negative'] = True
-    
-            if registers['ac'] > MAX_NUMBER:
-                registers['ac'] = binToDec((bin(registers['ac']).replace("0b", "")+".")[-NUMBER_OF_BITS-1:-1])
+
+            if result >= MAX_NUMBER:
+                result = trimToSize(result, NUMBER_OF_BITS)
                 flags['overflow'] = True
 
-            flags['zero'] = registers['ac'] == 0
+            registers[getRegName(arg1)] = result
 
         case "dec":
             if local_debug:
-                print(f"- Decrementing RA ({registers['a']}) by RARG ({registers['sys']}) [a-arg]")
+                print(f"- Decrementing {getRegName(arg1)} by {arg2}")
 
-            registers['ac'] = registers['a'] - registers['sys']
+            result = registers[getRegName(arg1)] - arg2
 
             flags['negative'] = False
             flags['overflow'] = False
+            flags['zero'] = result == 0
 
-            if registers['ac'] < 0:
-                registers['ac'] = abs(registers['ac'])
+            if result < 0:
+                result = abs(result)
                 flags['negative'] = True
-    
-            if registers['ac'] > MAX_NUMBER:
-                registers['ac'] = binToDec((bin(registers['ac']).replace("0b", "")+".")[-NUMBER_OF_BITS-1:-1])
+
+            if result >= MAX_NUMBER:
+                result = trimToSize(result, NUMBER_OF_BITS)
                 flags['overflow'] = True
 
-            flags['zero'] = registers['ac'] == 0
+            registers[getRegName(arg1)] = result
 
         case "bor":
             if local_debug:
-                print(f"- Bitwise OR of RA ({registers['a']}) and RB ({registers['b']}) [a|b]")
-            registers['ac'] = registers['a'] | registers['b']
+                print(f"- Bitwise OR of RA ({registers['a']}) and RB ({registers['b']}) to {getRegName(arg1)}")
+            result = registers['a'] | registers['b']
 
             flags['negative'] = False
             flags['overflow'] = False
-            flags['zero'] = registers['ac'] == 0
+            flags['zero'] = result == 0
+
+            registers[getRegName(arg1)] = result
 
         case "set":
             if local_debug:
-                print(f"- Setting RAC to RA ({registers['a']}) OR RARG ({registers['sys']}) [a|arg]")
-            registers['ac'] = registers['a'] | registers['sys']
+                print(f"- Setting RC to RA ({registers['a']}) OR RSYS ({registers['sys']})")
+            result = registers['a'] | registers['sys']
 
             flags['negative'] = False
             flags['overflow'] = False
-            flags['zero'] = registers['ac'] == 0
+            flags['zero'] =  result == 0
+
+            registers['c'] = result
 
         case "and":
             if local_debug:
-                print(f"- Bitwise AND of RA ({registers['a']}) and RB ({registers['b']}) [a&b]")
-            registers['ac'] = registers['a'] & registers['b']
+                print(f"- Bitwise AND of RA ({registers['a']}) and RB ({registers['b']}) to {getRegName(arg1)}")
+            result = registers['a'] & registers['b']
 
             flags['negative'] = False
             flags['overflow'] = False
-            flags['zero'] = registers['ac'] == 0
+            flags['zero'] = result == 0
+
+            registers[getRegName(arg1)] = result
 
         case "msk":
             if local_debug:
-                print(f"- Masking RA ({registers['a']}) with RARG ({registers['sys']}) [a&arg]")
-            registers['ac'] = registers['a'] & registers['sys']
+                print(f"- Setting RC to RA ({registers['a']}) AND RSYS ({registers['sys']})")
+            result = registers['a'] & registers['sys']
 
             flags['negative'] = False
             flags['overflow'] = False
-            flags['zero'] = registers['ac'] == 0
+            flags['zero'] =  result == 0
+
+            registers['c'] = result
 
         case "xor":
             if local_debug:
-                print(f"- Bitwise XOR of RA ({registers['a']}) and RB ({registers['b']}) [a|b]")
-            registers['ac'] = registers['a'] ^ registers['b']
+                print(f"- Bitwise XOR of RA ({registers['a']}) and RB ({registers['b']}) to {getRegName(arg1)}")
+            result = registers['a'] ^ registers['b']
 
             flags['negative'] = False
             flags['overflow'] = False
-            flags['zero'] = registers['ac'] == 0
+            flags['zero'] = result == 0
+
+            registers[getRegName(arg1)] = result
 
         case "enc":
             if local_debug:
-                print(f"- Encrypting RA ({registers['a']}) with key RARG ({registers['sys']}) [a|arg]")
-            registers['ac'] = registers['a'] ^ registers['sys']
+                print(f"- Setting RC to RA ({registers['a']}) XOR RSYS ({registers['sys']})")
+            result = registers['a'] ^ registers['sys']
 
             flags['negative'] = False
             flags['overflow'] = False
-            flags['zero'] = registers['ac'] == 0
+            flags['zero'] =  result == 0
+
+            registers['c'] = result
 
         case "not":
             if local_debug:
-                print(f"- Bitwise NOT of RA ({registers['a']}) [~a]")
-            registers['ac'] = bitwiseNot(registers['a'])
+                print(f"- Bitwise NOT of RA ({registers['a']}) to {getRegName(arg1)}")
+            result = bitwiseNot(registers['a'])
 
             flags['negative'] = False
             flags['overflow'] = False
-            flags['zero'] = registers['ac'] == 0
+            flags['zero'] = result == 0
+
+            registers[getRegName(arg1)] = result
 
         case "shr":
             if local_debug:
-                print(f"- Right shifting RA ({registers['a']}) [a >> 1]")
-            registers['ac'] = registers['a'] >> 1
+                print(f"- Right shifting RA ({registers['a']}) to {getRegName(arg1)}")
+            result = registers['a'] >> 1
 
             flags['negative'] = False
             flags['overflow'] = False
-            flags['zero'] = registers['ac'] == 0
+            flags['zero'] = result == 0
+
+            registers[getRegName(arg1)] = result
 
         case "shl":
             if local_debug:
-                print(f"- Left shifting RA ({registers['a']}) [a << 1]")
-            registers['ac'] = trimToSize(registers['a'] << 1, NUMBER_OF_BITS)
+                print(f"- Left shifting RA ({registers['a']}) to {getRegName(arg1)}")
+            result = trimToSize(registers['a'] << 1, NUMBER_OF_BITS)
 
             flags['negative'] = False
             flags['overflow'] = False
-            flags['zero'] = registers['ac'] == 0
+            flags['zero'] = result == 0
+
+            registers[getRegName(arg1)] = result
 
         case "cmp":
             if local_debug:
-                print(f"- Comapring RA ({registers['a']}) to RARG ({registers['sys']})")
+                print(f"- Comapring {getRegName(arg1)} with {getRegName(arg2)}")
 
-            registers['ac'] = 0
-            if registers['a'] < registers['sys']: registers['ac'] = 1
-            if registers['a'] > registers['sys']: registers['ac'] = 2
+            num_a = getReg(arg1)
+            num_b = getReg(arg1)
+            result = 0
+            if num_a < num_b: result = 1
+            if num_a > num_b: result = 2
 
             flags['negative'] = False
             flags['overflow'] = False
-            flags['zero'] = registers['ac'] == 0
+            flags['zero'] = result == 0
 
-        case "adr":
-            if local_debug:
-                print(f"- Setting both addresses to RARG ({registers['sys']})")
-            registers['wadr'] = trimToSize(registers['sys'], NUMBER_OF_BITS)
-            registers['radr'] = trimToSize(registers['sys'], NUMBER_OF_BITS)
+            registers['c'] = result
 
-        case "srv":
+        case "flg":
             if local_debug:
-                print(f"- Setting read address from RARG ({registers['sys']})")
-            registers['radr'] = trimToSize(registers['sys'], NUMBER_OF_BITS)
+                print(f"- Loading flags to {getRegName(arg1)}")
 
-        case "sra":
-            if local_debug:
-                print(f"- Setting read address from RA ({registers['a']})")
-            registers['radr'] = registers['a']
+            # Flag bits: 00000000_00000cnz
+            result = ["0" for _ in range(NUMBER_OF_BITS)]
+            result[-1] = flags["zero"]
+            result[-2] = flags["negative"]
+            result[-3] = flags["carry"]
 
-        case "swv":
-            if local_debug:
-                print(f"- Setting write address from RARG ({registers['sys']})")
-            registers['wadr'] = trimToSize(registers['sys'], NUMBER_OF_BITS)
-
-        case "swa":
-            if local_debug:
-                print(f"- Setting write address from RA ({registers['a']})")
-            registers['wadr'] = registers['a']
+            registers[getRegName(arg1)] = binToDec(result)
 
         case "lda":
             if local_debug:
-                print(f"- Reading from memory[{registers['radr']}] ({memory[registers['radr']]}) to RA")
-            registers['a'] = memory[registers['radr']]
-
-        case "ldb":
-            if local_debug:
-                print(f"- Reading from memory[{registers['radr']}] ({memory[registers['radr']]}) to RB")
-            registers['b'] = memory[registers['radr']]
+                print(f"- Reading from memory[{registers['radr']}] ({memory[registers['radr']]}) to {getRegName(arg1)}")
+            registers[getRegName(arg1)] = memory[registers['radr']]
 
         case "stv":
             if local_debug:
-                print(f"- Writing to memory[{registers['wadr']}] = RARG ({registers['sys']})")
+                print(f"- Writing to memory[{registers['wadr']}] = RSYS ({registers['sys']})")
             memory[registers['wadr']] = registers['sys']
 
-        case "sta":
+        case "str":
             if local_debug:
-                print(f"- Writing to memory[{registers['wadr']}] = RA ({registers['a']})")
-            memory[registers['wadr']] = registers['a']
-
-        case "stb":
-            if local_debug:
-                print(f"- Writing to memory[{registers['wadr']}] = RB ({registers['b']})")
-            memory[registers['wadr']] = registers['b']
+                print(f"- Writing to memory[{registers['wadr']}] = {getRegName(arg1)} ({getReg(arg1)})")
+            memory[registers['wadr']] = getReg(arg1)
 
         case "cpy":
             if local_debug:
                 print(f"- Copying in memory[{registers['wadr']}] ({memory[registers['wadr']]})\
                        = memory[{registers['radr']}] ({memory[registers['radr']]})")
             memory[registers['wadr']] = memory[registers['radr']]
+
+        case "psv":
+            if local_debug:
+                print(f"- Pushing RSYS ({registers['sys']}) to stack")
+
+            pushToStack(registers["sys"], "a")
+
+        case "psh":
+            if local_debug:
+                print(f"- Pushing {getRegName(arg1)} ({getReg(arg1)}) to stack")
+
+            pushToStack(getReg(arg1), "a")
+
+        case "pop":
+            if local_debug:
+                print(f"- Popping value from stack ({stacks['data'][-1]}) to {getRegName(arg1)}")
+
+            registers[getRegName(arg1)] = popFromStack("data")
 
         case "jmp":
             if local_debug:
@@ -450,57 +471,24 @@ def executeLine(index : int) -> str:
             counter = return_address #No -1 because it will continue on the next line (the curent address wa pushed, JSR would run again)
             has_jumped = True
 
+        case "rti":
+            return_address = popFromStack("int_adr")
+            if local_debug:
+                print(f"- Returning to address {return_address} (from interrupt)")
+            counter = return_address
+            has_jumped = True
+
         case "out":
             if local_debug:
-                print(f"- Outputting to port[{registers['sys']}] from RA ({registers['a']})")
-            ports['output'][registers['sys']] = [True, registers['a']]
+                print(f"- Outputting {getRegName(arg1)} ({getReg(arg1)}) to port[{arg2}]")
+            ports['output'][arg2] = [True, getReg(arg1)]
 
         case "inp":
-            handleInputDevices(registers['sys'])
+            handleInputDevices(arg2)
 
             if local_debug:
-                print(f"- Inputting from port[{registers['sys']}] ({ports['input'][registers['sys']][1]}) to RA")
-            registers['a'] = ports['input'][registers['sys']][1]
-
-        case "pva":
-            if local_debug:
-                print(f"- Pushing RARG ({registers['sys']}) to stack A")
-
-            pushToStack(registers["arg"], "a")
-
-        case "pvb":
-            if local_debug:
-                print(f"- Pushing RARG ({registers['sys']}) to stack B")
-
-            pushToStack(registers["arg"], "b")
-
-        case "psa":
-            if local_debug:
-                print(f"- Pushing RA ({registers['a']}) to stack A")
-
-            pushToStack(registers["a"], "a")
-            print("a", stack["a"])
-            print("b", stack["b"])
-
-        case "psb":
-            if local_debug:
-                print(f"- Pushing RA ({registers['a']}) to stack B")
-
-            pushToStack(registers["a"], "b")
-            print("a", stack["a"])
-            print("b", stack["b"])
-
-        case "ppa":
-            if local_debug:
-                print(f"- Popping value from stack A ({stack['a'][-1]}) to RA")
-
-            registers["a"] = popFromStack("a")
-
-        case "ppb":
-            if local_debug:
-                print(f"- Popping value from stack B ({stack['a'][-1]}) to RA")
-
-            registers["a"] = popFromStack("b")
+                print(f"- Inputting from port[{arg2}] ({ports['input'][arg2][1]}) to {getRegName(arg1)}")
+            registers[getRegName(arg1)] = ports['input'][arg2][1]
 
         case "hlt":
             if local_debug:
