@@ -131,9 +131,18 @@ while i < len(read_lines):
     inserted_code_length = len(result.instructions)
     insertion_line_index = read_lines[i]["index"]
 
-    # Insert the code from the macro
+    # Insert the code from the macro, but convert all int -> str
     for macro_index, line in enumerate(result.instructions):
-        read_lines.insert(i + macro_index, {"index": i + macro_index, "tokens": [str(a) for a in line]})
+        return_tokens = [(str(a) if type(a) == int else a) for a in line]
+
+        if type(return_tokens[1]) == list:
+            for j, t in enumerate(return_tokens[1]):
+                if type(t) == int: return_tokens[1][j] = str(t)
+
+        read_lines.insert(i + macro_index, {
+            "index": i + macro_index,
+            "tokens": return_tokens
+        })
 
     # Remove the original macro line
     read_lines.pop(i + inserted_code_length)
@@ -202,7 +211,7 @@ for _, data in enumerate(read_lines):
         print(f"{RED}ERROR: Unrecognised keyword: '{ins.upper()}'!{WHITE}")
         exit()
 
-    # Convert string arguments to list
+    # Convert string and int arguments to list
     if type(arg) == str: arg = [arg]
 
     # Replace values in all arguments

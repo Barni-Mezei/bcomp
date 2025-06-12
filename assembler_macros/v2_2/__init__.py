@@ -79,7 +79,7 @@ class loadStr(Macro):
         for i, char in enumerate(text):
             self.instructions += [
                 ["stw", start_address + i],
-                ["stv", ord(char)],
+                ["svv", ord(char)],
             ]
 
         # Load back register values
@@ -97,18 +97,21 @@ class loadArray(Macro):
         text = self.arguments[0][1:-1:].replace(" ", "").split(",")
         start_address = int(self.arguments[1])
 
-        print(self.arguments)
+        # Save register values
+        self.instructions += [
+            ["psh", "RWADR"],
+        ]
 
-        # Insert every character
+        # Insert every item
         for i, value in enumerate(text):
             self.instructions += [
-                ["swv", start_address + i],
-                ["stv", value],
+                ["stw", start_address + i],
+                ["svv", value],
             ]
 
-        # Reset RA and write address
+        # Load back register values
         self.instructions += [
-            ["swv", 0],
+            ["pop", "RWADR"],
         ]
 
         self.success = True
@@ -127,35 +130,52 @@ class printStr(Macro):
             "end": f":print_loop_end_{id(self)}",
         }
 
+        # Save register values
         self.instructions += [
-            ["swv", counter_address],
-            ["stv", start_address],
+            ["psh", "RA"],
+            ["psh", "RB"],
+            ["psh", "RRADR"],
+            ["psh", "RWADR"],
+        ]
+
+        # Create loop
+        self.instructions += [
+            ["stw", counter_address],
+            ["svv", start_address],
 
             # Loop
             [label_names["loop"], 0],
 
             # Get counter value
-            ["adr", counter_address],
-            ["lda", 0],
+            ["str", counter_address],
+            ["stw", counter_address],
+            ["lda", "RA"],
 
             # Output character at address
-            ["sra", 0],
-            ["lda", 0],
-            ["out", 2], # Character output
+            ["mov", ["RA", "RRADR"]],
+            ["lda", "RB"],
+            ["out", ["RB", 2]], # Character output
 
             # Get counter value
-            ["srv", counter_address],
-            ["lda", 0],
+            #["str", counter_address],
+            #["lda", "RA"],
 
             # Increment counter
-            ["inc", 1],
-            ["mca", 0],
-            ["sta", 0],
+            ["inc", ["RA", "1"]],
+            ["svr", "RA"],
             ["enc", start_address + length],
             # Exit or loop back
             ["jio", label_names["end"]],
             ["jmp", label_names["loop"]],
             [label_names["end"], 0],
+        ]
+
+        # Load back register values
+        self.instructions += [
+            ["pop", "RA"],
+            ["pop", "RB"],
+            ["pop", "RRADR"],
+            ["pop", "RWADR"],
         ]
 
         self.success = True

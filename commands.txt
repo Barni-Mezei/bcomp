@@ -23,8 +23,8 @@ shl 21 1
 cmp 22 1 
 flg 23 1 
 lda 24 1 
-stv 25 1 
-str 26 1 
+svv 25 1 
+svr 26 1 
 cpy 27 0 
 psv 28 1 
 psh 29 1 

@@ -143,14 +143,14 @@ def executeLine(index : int) -> str:
     registers['ins'] = binToDec(rom[counter][1])
     mnemonic = command_lookup[registers['ins']]
 
-    arg1 = binToDec(rom[counter][0][0:8])
-    arg2 = binToDec(rom[counter][0][9::])
+    arg1 = binToDec(rom[counter][0][8::])
+    arg2 = binToDec(rom[counter][0][0:8])
 
     local_debug = debug or break_points[index] != 0
     has_jumped = False
 
     if debug:
-        print(f"Clock: {index}\tCommand: {AQUA}{mnemonic}\t{WHITE}Breakpoint: {break_points[index]}")
+        print(f"Clock: {index}\tCommand: {AQUA}{mnemonic}\t{WHITE}Breakpoint: {break_points[index]} Arg1: {arg1} Arg2. {arg2} {rom[counter][0]}")
 
     match mnemonic:
         case "nop":
@@ -194,8 +194,8 @@ def executeLine(index : int) -> str:
 
         case "mov":
             if local_debug:
-                print(f"- Moving from register {arg1} ({getRegName(arg1)}) to register {arg2}")
-            registers['wadr'] = registers['sys']
+                print(f"- Moving from {getRegName(arg1)} ({getReg(arg1)}) to {getRegName(arg2)} ({getReg(arg2)})")
+            registers[getRegKey(arg1)] = getReg(arg2)
 
         case "add":
             if local_debug:
@@ -401,12 +401,12 @@ def executeLine(index : int) -> str:
                 print(f"- Reading from memory[{registers['radr']}] ({memory[registers['radr']]}) to {getRegName(arg1)}")
             registers[getRegKey(arg1)] = memory[registers['radr']]
 
-        case "stv":
+        case "svv":
             if local_debug:
                 print(f"- Writing to memory[{registers['wadr']}] = RSYS ({registers['sys']})")
             memory[registers['wadr']] = registers['sys']
 
-        case "str":
+        case "svr":
             if local_debug:
                 print(f"- Writing to memory[{registers['wadr']}] = {getRegName(arg1)} ({getReg(arg1)})")
             memory[registers['wadr']] = getReg(arg1)
@@ -431,7 +431,7 @@ def executeLine(index : int) -> str:
 
         case "pop":
             if local_debug:
-                print(f"- Popping value from stack ({stacks['data'][-1]}) to {getRegName(arg1)}")
+                print(f"- Popping value from stack ({stacks['data']['value'][-1]}) to {getRegName(arg1)}")
 
             registers[getRegKey(arg1)] = popFromStack("data")
 
@@ -530,13 +530,13 @@ def handleOutputDevices():
     if ports['output'][0][0]:
         pass
 
-    #Console port[1]
+    #Console port[1] number
     if ports['output'][1][0]:
         if debug: print(f"- DEVICE 'Console': Printing value (number)")
         print(f"{f'{GRAY}$ ' if result == 'break' else ''}{GRAY}{decToBin(ports['output'][1][1], 16)} {WHITE}{ports['output'][1][1]:>5d}{WHITE}")
         ports['output'][1][0] = False
 
-    #Console port[2]
+    #Console port[2] character
     if ports['output'][2][0]:
         if debug: print(f"- DEVICE 'Console': Printing value (character)")
         char_code = ports['output'][2][1]

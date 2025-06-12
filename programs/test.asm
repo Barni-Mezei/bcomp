@@ -1,22 +1,11 @@
 ;asm 2.2
 
-#loadStr "Hello, world!" 0
+sta 4
 
-$port_console 1
+psh RA
 
-; Starting value
-sta 7
+sta 10
 
-:loop
+pop RA
 
-dec 1, RA ; RA += 1
-
-; Output RA
-out RA, $port_console ; Number console
-
-jio :loop_end
-
-jmp :loop
-:loop_end
-
-hlt
+out RA, 1
