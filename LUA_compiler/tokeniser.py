@@ -17,8 +17,10 @@ Made by: Barni - 2025.03.14
 
 """
 TODO:
+- exp -> prefixexp -> (exp + var) var -> prefixexp.
+Calling exp, starts a brnaching tree, until recursion limit, with 2 loops: var <-> prefixexp AND exp <-> prefixexp
+
 - prefixexp -> functioncall
-- prefixexp -> "(" <exp> ")"
 
 BUG:
 - exp -> Numeral: '.5.0' evals to <number literal> .5 + <number literal> .0 so no 'wrong number' error
@@ -43,7 +45,7 @@ var ::= Name | prefixexp . Name
 explist ::= exp {',' exp}
 exp ::=  nil | false | true | Numeral | LiteralString | '...' | prefixexp
 
-prefixexp ::= var
+prefixexp ::= var | '(' exp ')'
 """
 
 import sys
@@ -559,6 +561,7 @@ def getTokenType(token : str) -> TokenType:
 
 def try_prefixexp_var(code_tokens : list, code_pointer : int, caller = "", recursion_depth = 0):
     if caller == "var" and recursion_depth >= max_recursion_depth: return False
+    #if recursion_depth >= max_recursion_depth: return False
 
     result = grammar_get_var(code_tokens, code_pointer, "prefixexp", recursion_depth)
 
@@ -567,17 +570,26 @@ def try_prefixexp_var(code_tokens : list, code_pointer : int, caller = "", recur
 
 def try_prefixexp_exp(code_tokens : list, code_pointer : int, caller = "", recursion_depth = 0):
     if caller == "exp" and recursion_depth >= max_recursion_depth: return False
+    #if recursion_depth >= max_recursion_depth: return False
 
-    if code_tokens[code_pointer].value == "(":
-        result = grammar_get_exp(code_tokens, code_pointer, "prefixexp", recursion_depth)
+    if code_tokens[code_pointer].value == "(" and code_pointer + 2 < len(code_tokens):
+        result = grammar_get_exp(code_tokens, code_pointer + 1, "prefixexp", recursion_depth + 1)
+        if result == False: return False
+        #print("Result", result, code_tokens[code_pointer + 1 + result[1]])
+
+        if code_tokens[code_pointer + 1 + result[1]].value == ")":
+            return result[0], result[1] + 2
+        else:
+            log(f"Unclosed parenthesis! {code_tokens[code_pointer].place}", "error")
+            return False
 
     return False
 
 def try_prefixexp(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
     # Try all defined prefixexps
     all_expressions = [
-        try_prefixexp_var,  #Looks like: <var>
-        #try_prefixexp_exp, #Looks like: "(" <exp> ")"
+        try_prefixexp_var, #Looks like: <var>
+        try_prefixexp_exp, #Looks like: "(" <exp> ")"
     ]
 
     # Return with the result
