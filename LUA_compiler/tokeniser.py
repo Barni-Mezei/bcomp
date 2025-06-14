@@ -343,70 +343,60 @@ def pre_tokenise(code_string : str) -> list:
     # End of file separator
     out.append({"value":"\tEOF", "row": line_number, "col": column})
 
-    print("Number joiner OUT:", out)
-
-    tmp = out
-    out = []
-
     # Combine floats into one token
     index = 0
-    while index < len(tmp):
-        token = tmp[index]
+    while index < len(out):
+        token = out[index]
         token_value = token["value"]
         index += 1
-
-        out.append(token)
 
         # Skip non-numeral tokens
         if token_value != "." and getTokenType(token_value) != TokenType.NUMBER_LITERAL:
             continue
 
         #WARNING: Th this point 'index' is already pointing to the next token!
-        if index - 2 >= 0 and index <= len(tmp):
-            prev = tmp[index - 2]
+        if index - 2 >= 0 and index <= len(out):
+            prev = out[index - 2]
             prev_value = prev["value"]
-            next = tmp[index]
+            next = out[index]
             next_value = next["value"]
 
             if next_value == ".": continue
 
-            prev_is_number = getTokenType(prev_value) == TokenType.NUMBER_LITERAL
-            next_is_number = getTokenType(next_value) == TokenType.NUMBER_LITERAL
+            prev_is_number = getTokenType(prev_value) == TokenType.NUMBER_LITERAL and not "." in prev_value
+            next_is_number = getTokenType(next_value) == TokenType.NUMBER_LITERAL and not "." in next_value
+
+            # print("Corrected INDEX:", index - 1, "Tokens:", out, "prev token:", prev,
+            #       "current token:", token, "next token:", next,
+            #       "prev is number?", prev_is_number, "next is number?", next_is_number,
+            # sep = "\n")
 
             if prev_is_number:
                 if next_is_number:
-                    print("Number pcn:", f"{prev_value}{token_value}{next_value}")
-                    out.pop()
-                    out.pop()
-                    out.append({"value": prev_value+token_value+next_value, "row": prev["row"], "col": prev["col"]})
+                    #print("Number pcn:", f"{prev_value}{token_value}{next_value}")
+                    out.pop(index - 2)
+                    out.pop(index - 2)
+                    out.pop(index - 2)
+                    out.insert(index - 2, {"value": prev_value+token_value+next_value, "row": prev["row"], "col": prev["col"]})
                     index += 1
                 else:
-                    print("Number pc-:", f"{prev_value}{token_value}")
-                    print("OUT", out)
-                    print("prev", prev)
-                    out.pop()
-                    out.pop()
-                    out.append({"value": prev_value+token_value, "row": prev["row"], "col": prev["col"]})
-                    print("OUT", out)
+                    #print("Number pc-:", f"{prev_value}{token_value}")
+                    out.pop(index - 2)
+                    out.pop(index - 2)
+                    out.insert(index - 2, {"value": prev_value+token_value, "row": prev["row"], "col": prev["col"]})
             else:
                 if next_is_number:
-                    print("Number -cn:", f"{token_value}{next_value}")
-                    out.pop()
-                    out.append({"value": token_value+next_value, "row": token["row"], "col": token["col"]})
-                    print("OUT", out)
-                    index += 1
+                    #print("Number -cn:", f"{token_value}{next_value}")
+                    out.pop(index - 1)
+                    out.pop(index - 1)
+                    out.insert(index - 1, {"value": token_value+next_value, "row": token["row"], "col": token["col"]})
                 elif token_value != ".":
-                    print("Number -c-:", f"{token_value}")
+                    #print("Number -c-:", f"{token_value}")
                     pass
-
-        print("Loop end OUT:", out)
-        print("----------")
-
 
     # Remove start of file separator (temporary for floats)
     out.pop(0)
 
-    print("OUT", out)
 
     # print out constructed tokens, nicely
     """for token in out:
