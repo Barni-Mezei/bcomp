@@ -261,6 +261,10 @@ def print_parsed_token(token : list, indentation_level : int = 0) -> None:
             if token['exp_type'] == TokenType.UNARY_EXPRESSION:
                 print(f" '{token['operand']}'")
                 print_parsed_token(token['value'], indentation_level + 4)
+            if token['exp_type'] == TokenType.BINARY_EXPRESSION:
+                print(f" '{token['operand']}'")
+                print_parsed_token(token['value_a'], indentation_level + 4)
+                print_parsed_token(token['value_b'], indentation_level + 4)
             else:
                 print(f" '{token['value']}' ({token['exp_type']})")
         case "varlist":
@@ -687,12 +691,30 @@ def try_exp_unop(code_tokens : list, code_pointer : int, caller = "", recursion_
 
     return {"type": "exp", "exp_type": TokenType.UNARY_EXPRESSION, "operand": code_tokens[code_pointer].value, "value": result_exp[0]}, 1 + result_exp[1]
 
+def try_exp_binop(code_tokens : list, code_pointer : int, caller = "", recursion_depth = 0):
+    if caller == "exp" and recursion_depth >= max_recursion_depth: return False
+
+    result_exp1 = grammar_get_exp(code_tokens, code_pointer, "exp", recursion_depth + 1)
+    if result_exp1 == False: return False
+
+    pointer_offset = result_exp1[1]
+
+    if not code_tokens[code_pointer + pointer_offset].value in BINOP: return False
+
+    result_exp2 = grammar_get_exp(code_tokens, code_pointer + pointer_offset + 1, "exp", recursion_depth + 1)
+    if result_exp2 == False: return False
+
+    pointer_offset += 1 + result_exp2[1]
+
+    return {"type": "exp", "exp_type": TokenType.BINARY_EXPRESSION, "operand": code_tokens[code_pointer + result_exp1[1]].value, "value_a": result_exp1[0], "value_b": result_exp2[0]}, pointer_offset
+
 def try_exp(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
     # Try all defined statements
     all_expressions = [
+        try_exp_binop,      # Looks like: <exp> binop <exp>
         try_exp_nil,        # Looks like: "nil"
-        try_exp_false,      # Looks like: "false"
         try_exp_true,       # Looks like: "true"
+        try_exp_false,      # Looks like: "false"
         try_exp_number,     # Looks like: "5" | "3.25"
         try_exp_string,     # Looks like: '"asd"' (between quotes)
         try_exp_ellipsis,   # Looks like: "..."
