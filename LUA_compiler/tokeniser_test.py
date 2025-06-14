@@ -249,7 +249,8 @@ def test_code(code : str):
         test_fail()
     else:
         print(tokens)
-        tokeniser.print_parsed_tokens(tokens)
+        for t in tokens:
+            tokeniser.print_parsed_token(t)
         test_pass()
 
 
@@ -265,7 +266,7 @@ def test_code(code : str):
 # 0: Only results
 # 1: Reults and states
 # 2: Everything
-log_level = 1
+log_level = 2
 
 max_tests = 0
 completed_tests = 0
@@ -309,7 +310,8 @@ completed_tests = 0
 # test_exp("((true))", tokeniser.TokenType.BOOL_LITERAL)
 # test_exp("(a)", tokeniser.TokenType.IDENTIFIER)
 # test_exp("((15)", "error")
-test_exp("((15)", "error")
+
+#test_exp("not not 5", "error")
 
 # test_var("a", "a")
 # test_var("a.b", "a.b")
@@ -353,11 +355,11 @@ test_exp("((15)", "error")
 # test_statement('house.door., a = 12., "string"', "error")
 # test_statement('house.door, = 5', "error")
 
-# test_code(
-# """
-# a = 5
-# b = (true)
-# """)
+test_code(
+"""
+b = 3
+a = not b
+""")
 
 ##############
 # Evaluation #

@@ -99,6 +99,11 @@ max_recursion_depth = 32
 TOKEN_SEPARATORS = ['\n', ' ', ',', ':', '.', '(', ')', '{', '}', '[', ']']
 OPERATORS = ['=', '+', '-', '*', '/', '%', '^', '&', '|', '~', '<', '>',
              '<=', '>=', '==', '<<', '>>', '//', '~=', '#', '::', '..']
+UNOP = ['-', 'not', '#', '~']
+BINOP = ['+', '-', '*', '/', '//', '^', '%',
+         '&', '~', '|', '>>', '<<', '..'
+         '<', '<=', '>', '>=', '==', '~=',
+         'and', 'or']
 BLOCK_BOUNDARY = ['\n', 'end']
 STRING_BOUNDARY = ['"', "'", '`']
 KEYWORDS = ['and', 'break', 'do', 'else', 'elseif', 'end', 'false', 'for', 'function', 'goto', 'if', 'in',
@@ -116,8 +121,8 @@ class TokenType(Enum):
     BOOL_LITERAL = 7
     ELLIPSIS = 8
     NIL = 9
-    EXPRESSION_START = 10 # (
-    EXPRESSION_END = 11 # )
+    UNARY_EXPRESSION = 10 # ~, not
+    BINARY_EXPRESSION= 11 # +, and
     SPECIAL = 99 # The control characters
 
 class Character:
@@ -169,8 +174,8 @@ class Token:
             case TokenType.BOOL_LITERAL: text_color = GREEN
             case TokenType.ELLIPSIS: text_color = AQUA
             case TokenType.NIL: text_color = RED
-            case TokenType.EXPRESSION_START: text_color = WHITE
-            case TokenType.EXPRESSION_END: text_color = WHITE
+            case TokenType.UNARY_EXPRESSION: text_color = WHITE
+            case TokenType.BINARY_EXPRESSION: text_color = WHITE
             case TokenType.SPECIAL: text_color = RED
 
         return f"{text_color}{str(self.type).split('.')[1]:<20}{WHITE}{self.place:<15}{(GREEN if self.value == '\tSOF' else RED) + self.value.replace(chr(9), '') + WHITE if self.type == TokenType.SPECIAL else repr(self.value)}"
@@ -242,34 +247,37 @@ def print_tokens(token_list : list, title : str = "") -> None:
 ]
 """
 
-def print_parsed_tokens(token_list : list, indentation_level : int = 0) -> None:
+def print_parsed_token(token : list, indentation_level : int = 0) -> None:
     tab = " " * indentation_level
     tab2 = " " * (indentation_level + 4)
 
-    for t in token_list:
-        #print("TOKEN LIST", token_list, "TOKEN:", t)
-        print(tab + f"{t['type'].capitalize()}:", end="")
+    #print("TOKEN", token)
+    print(tab + f"{token['type'].capitalize()}:", end="")
 
-        match t["type"]:
-            case "var":
-                print(f" '{t['value']}'")
-            case "exp":
-                print(f" '{t['value']}' ({t['exp_type']})")
-            case "varlist":
-                print()
-                print_parsed_tokens(t["vars"], indentation_level + 4)
-            case "explist":
-                print()
-                print_parsed_tokens(t["exps"], indentation_level + 4)
-            case "statement":
-                print()
-                print(tab2 + f"Type: '{t['stat_type']}'")
-                match t["stat_type"]:
-                    case "semicolon":
-                        pass
-                    case "assignment":
-                        print_parsed_tokens([t["varlist"]], indentation_level + 4)
-                        print_parsed_tokens([t["explist"]], indentation_level + 4)
+    match token["type"]:
+        case "var":
+            print(f" '{token['value']}'")
+        case "exp":
+            if token['exp_type'] == TokenType.UNARY_EXPRESSION:
+                print(f" '{token['operand']}'")
+                print_parsed_token(token['value'], indentation_level + 4)
+            else:
+                print(f" '{token['value']}' ({token['exp_type']})")
+        case "varlist":
+            print()
+            for t in token["vars"]: print_parsed_token(t, indentation_level + 4)
+        case "explist":
+            print()
+            for t in token["exps"]: print_parsed_token(t, indentation_level + 4)
+        case "statement":
+            print()
+            print(tab2 + f"Type: '{token['stat_type']}'")
+            match token["stat_type"]:
+                case "semicolon":
+                    pass
+                case "assignment":
+                    print_parsed_token(token["varlist"], indentation_level + 4)
+                    print_parsed_token(token["explist"], indentation_level + 4)
 
 
 ################
@@ -549,8 +557,8 @@ def getTokenType(token : str) -> TokenType:
     if re.search("^\".*\"|\'.*\'$", token): return TokenType.STRING_LITERAL
     if re.search("^(?:(?:(?:[0-9_]+\\.)|(?:\\.[0-9_]+)|(?:[0-9_]+\\.[0-9_]+)|(?:[0-9_]+)|(?:[0-9_]+[eE][0-9_]+))|0[xX][0-9a-fA-F]+|0[bB][01]+)$", token): return TokenType.NUMBER_LITERAL
     if re.search("^[a-zA-Z_]\\w*$", token): return TokenType.IDENTIFIER
-    if token in "({[": return TokenType.EXPRESSION_START
-    if token in ")}]": return TokenType.EXPRESSION_END
+    if token in "({[": return TokenType.UNKNOWN
+    if token in ")}]": return TokenType.UNKNOWN
 
     return TokenType.UNKNOWN
 
@@ -577,7 +585,7 @@ def try_prefixexp_exp(code_tokens : list, code_pointer : int, caller = "", recur
         if result == False: return False
         #print("Result", result, code_tokens[code_pointer + 1 + result[1]])
 
-        if code_tokens[code_pointer + 1 + result[1]].value == ")":
+        if code_pointer + 1 + result[1] < len(code_tokens) and code_tokens[code_pointer + 1 + result[1]].value == ")":
             return result[0], result[1] + 2
         else:
             log(f"Unclosed parenthesis! {code_tokens[code_pointer].place}", "error")
@@ -603,6 +611,9 @@ def try_prefixexp(code_tokens : list, code_pointer : int, caller : str = "", rec
 def grammar_get_prefixexp(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
     #print(caller, "-> grammar_get_prefixexp", recursion_depth)
     if code_pointer < len(code_tokens) and code_tokens[code_pointer].value == "\tEOF": return False
+
+    #print_tokens(code_tokens[code_pointer::], "Prefixexp")
+    #print("---")
 
     result = try_prefixexp(code_tokens, code_pointer, caller, recursion_depth + 1)
 
@@ -664,6 +675,18 @@ def try_exp_prefixexp(code_tokens : list, code_pointer : int, caller = "", recur
     if result == False: return False
     return result[0], result[1]
 
+def try_exp_unop(code_tokens : list, code_pointer : int, caller = "", recursion_depth = 0):
+    if caller == "exp" and recursion_depth >= max_recursion_depth: return False
+
+    if not code_tokens[code_pointer].value in UNOP: return False
+
+    log_group("Expression")
+    result_exp = grammar_get_exp(code_tokens, code_pointer + 1, "exp", recursion_depth + 1)
+    log_group_end()
+    if result_exp == False: return False
+
+    return {"type": "exp", "exp_type": TokenType.UNARY_EXPRESSION, "operand": code_tokens[code_pointer].value, "value": result_exp[0]}, 1 + result_exp[1]
+
 def try_exp(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
     # Try all defined statements
     all_expressions = [
@@ -674,6 +697,7 @@ def try_exp(code_tokens : list, code_pointer : int, caller : str = "", recursion
         try_exp_string,     # Looks like: '"asd"' (between quotes)
         try_exp_ellipsis,   # Looks like: "..."
         try_exp_prefixexp,  # Looks like: <var> | "(" <exp> ")"
+        try_exp_unop,       # Looks like: unop <exp>
     ]
 
     # Return with the result
@@ -687,6 +711,9 @@ def try_exp(code_tokens : list, code_pointer : int, caller : str = "", recursion
 def grammar_get_exp(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
     #print(caller, "-> grammar_get_exp", recursion_depth)
     if code_pointer < len(code_tokens) and code_tokens[code_pointer].value == "\tEOF": return False
+
+    #print_tokens(code_tokens[code_pointer::], "Exp")
+    #print("---")
 
     result = try_exp(code_tokens, code_pointer, caller, recursion_depth + 1)
 
@@ -858,6 +885,10 @@ def try_statement_assignment(code_tokens : list, code_pointer : int, caller = ""
     if result_varlist == False: return False
 
     pointer_offset = result_varlist[1]
+
+    if not code_tokens[code_pointer + pointer_offset].value == "=":
+        log(f"Invalid assignment operator! {code_tokens[code_pointer + pointer_offset].place}", "error")
+        return False
 
     log_group("Explist")
     result_explist = grammar_get_explist(code_tokens, code_pointer + pointer_offset + 1)
