@@ -58,8 +58,6 @@ def test_exp(code : str, expected_result):
         else:
             test_fail()
 
-    if log_level > 0 and tokens: tokeniser.print_tokens(tokens)
-
     if log_level == 2:
         print("\nLogs:")
         tokeniser.print_logs()
@@ -90,8 +88,6 @@ def test_var(code : str, expected_result):
             test_pass()
         else:
             test_fail()
-
-    if log_level > 0 and tokens: tokeniser.print_tokens(tokens)
 
     if log_level == 2:
         print("\nLogs:")
@@ -132,8 +128,6 @@ def test_varlist(code : str, expected_result):
         else:
             test_fail()
 
-    if log_level > 0 and tokens: tokeniser.print_tokens(tokens)
-
     if log_level == 2:
         print("\nLogs:")
         tokeniser.print_logs()
@@ -172,8 +166,6 @@ def test_explist(code : str, expected_result):
                 else: test_fail()
         else:
             test_fail()
-
-    if log_level > 0 and tokens: tokeniser.print_tokens(tokens)
 
     if log_level == 2:
         print("\nLogs:")
@@ -237,12 +229,31 @@ def test_statement(code : str, expected_result):
         else:
             test_fail()
 
-    if log_level > 0 and tokens: tokeniser.print_tokens(tokens)
-
     if log_level == 2:
         print("\nLogs:")
         tokeniser.print_logs()
     if log_level > 0: print("----------")
+
+def test_code(code : str):
+    print(f"Testing full code:\n{GRAY}'{code}'{WHITE}")
+
+    tokens = _test_main(code)
+
+    tokeniser.print_tokens(tokens, "Tokenised code:")
+
+    print("Chunk parser result: ", end="")
+    tokens = tokeniser.model(tokens)
+
+    if tokens == False:
+        print(f"{RED}False{WHITE}")
+        test_fail()
+    else:
+        print(tokens)
+        test_pass()
+
+    print("\nLogs:")
+    tokeniser.print_logs()
+    print("----------")
 
 ############
 # Settings #
@@ -252,7 +263,7 @@ def test_statement(code : str, expected_result):
 # 0: Only results
 # 1: Reults and states
 # 2: Everything
-log_level = 2
+log_level = 0
 
 max_tests = 0
 completed_tests = 0
@@ -261,76 +272,82 @@ completed_tests = 0
 # Tests #
 #########
 
-# test_exp("5", tokeniser.TokenType.NUMBER_LITERAL)
-# test_exp("5.", tokeniser.TokenType.NUMBER_LITERAL)
-# test_exp(".5", tokeniser.TokenType.NUMBER_LITERAL)
-# test_exp(".5.", tokeniser.TokenType.NUMBER_LITERAL) # .5 .
-# test_exp(".5.0", tokeniser.TokenType.NUMBER_LITERAL) # .5 .0
-# test_exp(".5.0.", tokeniser.TokenType.NUMBER_LITERAL) # .5 .0 .
-# test_exp("5.0.", tokeniser.TokenType.NUMBER_LITERAL) # 5.0 .
-# test_exp("5.0", tokeniser.TokenType.NUMBER_LITERAL)
-# test_exp("0.5", tokeniser.TokenType.NUMBER_LITERAL)
-# test_exp("e4", tokeniser.TokenType.IDENTIFIER)
-# test_exp("4e", "error")
-# test_exp("4e6", tokeniser.TokenType.NUMBER_LITERAL)
-# test_exp("0b", "error")
-# test_exp("0b3", "error")
-# test_exp("0b1", tokeniser.TokenType.NUMBER_LITERAL)
-# test_exp("0x", "error")
-# test_exp("0x0", tokeniser.TokenType.NUMBER_LITERAL)
-# test_exp("0xh", "error")
-# test_exp("0x4f", tokeniser.TokenType.NUMBER_LITERAL)
-# test_exp('"H', "error")
-# test_exp('"H"', tokeniser.TokenType.STRING_LITERAL)
-# test_exp('"Hello!"', tokeniser.TokenType.STRING_LITERAL)
-# test_exp('"Multi word"', tokeniser.TokenType.STRING_LITERAL)
-# test_exp('"Multi\nline"', "error")
-# test_exp(r'"Escaped \" quotes \""', tokeniser.TokenType.STRING_LITERAL)
-# test_exp('"56"', tokeniser.TokenType.STRING_LITERAL)
-# test_exp("nil", tokeniser.TokenType.NIL)
-# test_exp("true", tokeniser.TokenType.BOOL_LITERAL)
-# test_exp("false", tokeniser.TokenType.BOOL_LITERAL)
-# test_exp("...", tokeniser.TokenType.ELLIPSIS)
-# test_exp("a", tokeniser.TokenType.IDENTIFIER)
-# test_exp("a.b", tokeniser.TokenType.IDENTIFIER)
+test_exp("5", tokeniser.TokenType.NUMBER_LITERAL)
+test_exp("5.", tokeniser.TokenType.NUMBER_LITERAL)
+test_exp(".5", tokeniser.TokenType.NUMBER_LITERAL)
+test_exp(".5.", tokeniser.TokenType.NUMBER_LITERAL) # .5 .
+test_exp(".5.0", tokeniser.TokenType.NUMBER_LITERAL) # .5 .0
+test_exp(".5.0.", tokeniser.TokenType.NUMBER_LITERAL) # .5 .0 .
+test_exp("5.0.", tokeniser.TokenType.NUMBER_LITERAL) # 5.0 .
+test_exp("5.0", tokeniser.TokenType.NUMBER_LITERAL)
+test_exp("0.5", tokeniser.TokenType.NUMBER_LITERAL)
+test_exp("e4", tokeniser.TokenType.IDENTIFIER)
+test_exp("4e", "error")
+test_exp("4e6", tokeniser.TokenType.NUMBER_LITERAL)
+test_exp("0b", "error")
+test_exp("0b3", "error")
+test_exp("0b1", tokeniser.TokenType.NUMBER_LITERAL)
+test_exp("0x", "error")
+test_exp("0x0", tokeniser.TokenType.NUMBER_LITERAL)
+test_exp("0xh", "error")
+test_exp("0x4f", tokeniser.TokenType.NUMBER_LITERAL)
+test_exp('"H', "error")
+test_exp('"H"', tokeniser.TokenType.STRING_LITERAL)
+test_exp('"Hello!"', tokeniser.TokenType.STRING_LITERAL)
+test_exp('"Multi word"', tokeniser.TokenType.STRING_LITERAL)
+test_exp('"Multi\nline"', "error")
+test_exp(r'"Escaped \" quotes \""', tokeniser.TokenType.STRING_LITERAL)
+test_exp('"56"', tokeniser.TokenType.STRING_LITERAL)
+test_exp("nil", tokeniser.TokenType.NIL)
+test_exp("true", tokeniser.TokenType.BOOL_LITERAL)
+test_exp("false", tokeniser.TokenType.BOOL_LITERAL)
+test_exp("...", tokeniser.TokenType.ELLIPSIS)
+test_exp("a", tokeniser.TokenType.IDENTIFIER)
+test_exp("a.b", tokeniser.TokenType.IDENTIFIER)
 
-# test_var("a", "a")
-# test_var("a.b", "a.b")
-# test_var("house.door", "house.door")
-# test_var("house.door.frame", "house.door.frame")
-# test_var("house.door.", "house.door.")
-# test_var(".house.door", "error")
-#test_var(".house.door.", "error")
-# test_var(".g", "error")
-# test_var(".", "error")
-# test_var("k.l..g", "k.l")
-# test_var("4abc", "error")
-# test_var("abc4_", "abc4_")
+test_var("a", "a")
+test_var("a.b", "a.b")
+test_var("house.door", "house.door")
+test_var("house.door.frame", "house.door.frame")
+test_var("house.door.", "error")
+test_var(".house.door", "error")
+test_var(".house.door.", "error")
+test_var(".g", "error")
+test_var(".", "error")
+test_var("k.l..g", "k.l")
+test_var("4abc", "error")
+test_var("abc4_", "abc4_")
 
-test_varlist("a.b., c", "a.b")
-# test_varlist("", "error")
-# test_varlist("a", ["a"])
-# test_varlist("a.b", ["a.b"])
-# test_varlist("a, b", ["a", "b"])
-# test_varlist("a.b, c", ["a.b", "c"])
-# test_varlist("a.b.c,  d.e, f, g.h", ["a.b.c", "d.e", "f", "g.h"])
-# test_varlist("h,", ["h"])
-# test_varlist(",k", "error")
+test_varlist("", "error")
+test_varlist("a", ["a"])
+test_varlist("a.b", ["a.b"])
+test_varlist("a.b., c", "error")
+test_varlist("a, b", ["a", "b"])
+test_varlist("a.b, c", ["a.b", "c"])
+test_varlist("a.b.c,  d.e, f, g.h", ["a.b.c", "d.e", "f", "g.h"])
+test_varlist("h,", ["h"])
+test_varlist(",k", "error")
 
-# test_explist("5", ["5"])
-# test_explist("a.b, 4", ["a.b", "4"])
-# test_explist("a.b, 5.45, nil", ["a.b", "5.45", "nil"])
-# test_explist("false,", ["false"])
-# test_explist(",true", "error")
+test_explist("5", ["5"])
+test_explist("5.", ["5."])
+test_explist(".5.", [".5"])
+test_explist("a.b, 4", ["a.b", "4"])
+test_explist("a.b, 5.45, nil", ["a.b", "5.45", "nil"])
+test_explist("false,", ["false"])
+test_explist(",true", "error")
 
-# test_statement(";", ["semicolon"])
-# test_statement("5", "error")
-# test_statement("a.b", "error")
-# test_statement("c =", "error")
-# test_statement("= 67", "error")
-# test_statement("a = 5", ["assignment", ["a"], ["5"]])
-# test_statement("house.door = 34.6", ["assignment", ["house.door"], ["34.6"]])
-# test_statement('house.door, a = 12., "string"', ["assignment", ["house.door", "a"], ["12.", '"string"']])
+test_statement(";", ["semicolon"])
+test_statement("5", "error")
+test_statement("a.b", "error")
+test_statement("c =", "error")
+test_statement("= 67", "error")
+test_statement("a = 5", ["assignment", ["a"], ["5"]])
+test_statement("house.door = 34.6", ["assignment", ["house.door"], ["34.6"]])
+test_statement('house.door, a = 12., "string"', ["assignment", ["house.door", "a"], ["12.", '"string"']])
+test_statement('house.door., a = 12., "string"', "error")
+test_statement('house.door, = 5', "error")
+
+test_code('house.door = 5\na = 6')
 
 ##############
 # Evaluation #
@@ -339,7 +356,7 @@ test_varlist("a.b., c", "a.b")
 print("\nAll tests finished.")
 print(f"Number of tests: {GRAY}{max_tests}{WHITE}")
 print(f"Succesful tests: {GRAY}{completed_tests}{WHITE}")
-print(f"Filed tests: {GRAY}{max_tests - completed_tests}{WHITE}")
+print(f"Failed tests: {GRAY}{max_tests - completed_tests}{WHITE}")
 
 ratio = completed_tests / max_tests
 bar_length = 20

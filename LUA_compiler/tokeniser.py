@@ -581,7 +581,6 @@ def try_exp(code_tokens : list, code_pointer : int, caller : str = "", recursion
     # Return with the result
     for index, expression in enumerate(all_expressions):
         result = expression(code_tokens, code_pointer, caller, recursion_depth)
-        #print("result", result)
         if result != False: return result
 
     # Default to failure (no expression found)
@@ -697,6 +696,7 @@ def grammar_get_explist(code_tokens : list, code_pointer : int, caller : str = "
         else:
             result = grammar_get_exp(code_tokens, code_pointer + pointer_offset, "explist", recursion_depth + 1)
 
+
             if result == False: return False
 
             out.append(result[0])
@@ -792,7 +792,7 @@ def try_statement(code_tokens : list, code_pointer : int, caller : str = "", rec
     return False
 
 def grammar_get_statement(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
-    #print(caller, "-> grammar_get_exp", recursion_depth)
+    #print(caller, "-> grammar_get_statement", recursion_depth)
     if code_pointer < len(code_tokens) and code_tokens[code_pointer].value == "\tEOF": return False
 
     result = try_statement(code_tokens, code_pointer, caller, recursion_depth + 1)
