@@ -343,6 +343,8 @@ def pre_tokenise(code_string : str) -> list:
     # End of file separator
     out.append({"value":"\tEOF", "row": line_number, "col": column})
 
+    print("Number joiner OUT:", out)
+
     tmp = out
     out = []
 
@@ -359,7 +361,7 @@ def pre_tokenise(code_string : str) -> list:
         if token_value != "." and getTokenType(token_value) != TokenType.NUMBER_LITERAL:
             continue
 
-        #WARNING: 'index' is already pointing to the next token!
+        #WARNING: Th this point 'index' is already pointing to the next token!
         if index - 2 >= 0 and index <= len(tmp):
             prev = tmp[index - 2]
             prev_value = prev["value"]
@@ -373,28 +375,38 @@ def pre_tokenise(code_string : str) -> list:
 
             if prev_is_number:
                 if next_is_number:
-                    #print("Number pcn:", f"{prev}{curr}{next}")
+                    print("Number pcn:", f"{prev_value}{token_value}{next_value}")
                     out.pop()
                     out.pop()
                     out.append({"value": prev_value+token_value+next_value, "row": prev["row"], "col": prev["col"]})
                     index += 1
                 else:
-                    #print("Number pc-:", f"{prev}{curr}")
+                    print("Number pc-:", f"{prev_value}{token_value}")
+                    print("OUT", out)
+                    print("prev", prev)
                     out.pop()
                     out.pop()
                     out.append({"value": prev_value+token_value, "row": prev["row"], "col": prev["col"]})
+                    print("OUT", out)
             else:
                 if next_is_number:
-                    #print("Number -cn:", f"{curr}{next}")
+                    print("Number -cn:", f"{token_value}{next_value}")
                     out.pop()
                     out.append({"value": token_value+next_value, "row": token["row"], "col": token["col"]})
+                    print("OUT", out)
                     index += 1
                 elif token_value != ".":
-                    #print("Number -c-:", f"{curr}")
+                    print("Number -c-:", f"{token_value}")
                     pass
+
+        print("Loop end OUT:", out)
+        print("----------")
+
 
     # Remove start of file separator (temporary for floats)
     out.pop(0)
+
+    print("OUT", out)
 
     # print out constructed tokens, nicely
     """for token in out:
@@ -696,6 +708,8 @@ def grammar_get_explist(code_tokens : list, code_pointer : int, caller : str = "
             pointer_offset += result[1]
             expected_separator = True
 
+    if len(out) == 0: return False
+
     return {"type": "explist", "exps": out}, pointer_offset
 
 
@@ -738,6 +752,8 @@ def grammar_get_varlist(code_tokens : list, code_pointer : int, caller : str = "
             pointer_offset += result[1]
             expected_separator = True
 
+    if len(out) == 0: return False
+
     return {"type": "varlist", "vars": out}, pointer_offset
 
 ###################
@@ -757,11 +773,11 @@ def try_statement_assignment(code_tokens : list, code_pointer : int, caller = ""
     log_group_end()
     if result_explist == False: return False
 
-    print("EXPLIST", result_explist)
+    #print("EXPLIST", result_explist)
 
     pointer_offset += result_explist[1] + 1
 
-    return {"type": "stytement", "stat_type": "assignment", "varlist": result_varlist[0], "explist": result_explist[0]}, code_pointer + pointer_offset
+    return {"type": "statement", "stat_type": "assignment", "varlist": result_varlist[0], "explist": result_explist[0]}, code_pointer + pointer_offset
 
 def try_statement_semicolon(code_tokens : list, code_pointer : int, caller = "", recursion_depth = 0):
     if code_tokens[code_pointer].value == ";":

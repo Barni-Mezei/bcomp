@@ -171,10 +171,10 @@ class printStr(Macro):
 
         # Load back register values
         self.instructions += [
-            ["pop", "RA"],
-            ["pop", "RB"],
-            ["pop", "RRADR"],
             ["pop", "RWADR"],
+            ["pop", "RRADR"],
+            ["pop", "RB"],
+            ["pop", "RA"],
         ]
 
         self.success = True
@@ -232,9 +232,9 @@ class forLoop(Macro):
 
         # Save register values
         self.instructions += [
-            ["pop", "RA"],
-            ["pop", "RRADR"],
             ["pop", "RWADR"],
+            ["pop", "RRADR"],
+            ["pop", "RA"],
         ]
 
         self.success = True
@@ -292,9 +292,9 @@ class reverseForLoop(Macro):
 
         # Save register values
         self.instructions += [
-            ["pop", "RA"],
-            ["pop", "RRADR"],
             ["pop", "RWADR"],
+            ["pop", "RRADR"],
+            ["pop", "RA"],
         ]
 
         self.success = True
