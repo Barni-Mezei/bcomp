@@ -94,7 +94,7 @@ if __name__ == "__main__":
 ###############
 
 code_pointer = 0
-max_recursion_depth = 32
+max_recursion_depth = 30
 
 TOKEN_SEPARATORS = ['\n', ' ', ',', ':', '.', '(', ')', '{', '}', '[', ']']
 OPERATORS = ['=', '+', '-', '*', '/', '%', '^', '&', '|', '~', '<', '>',
@@ -261,7 +261,7 @@ def print_parsed_token(token : list, indentation_level : int = 0) -> None:
             if token['exp_type'] == TokenType.UNARY_EXPRESSION:
                 print(f" '{token['operand']}'")
                 print_parsed_token(token['value'], indentation_level + 4)
-            if token['exp_type'] == TokenType.BINARY_EXPRESSION:
+            elif token['exp_type'] == TokenType.BINARY_EXPRESSION:
                 print(f" '{token['operand']}'")
                 print_parsed_token(token['value_a'], indentation_level + 4)
                 print_parsed_token(token['value_b'], indentation_level + 4)
@@ -711,6 +711,7 @@ def try_exp_binop(code_tokens : list, code_pointer : int, caller = "", recursion
 def try_exp(code_tokens : list, code_pointer : int, caller : str = "", recursion_depth : int = 0):
     # Try all defined statements
     all_expressions = [
+        try_exp_prefixexp,  # Looks like: <var> | "(" <exp> ")"
         try_exp_binop,      # Looks like: <exp> binop <exp>
         try_exp_nil,        # Looks like: "nil"
         try_exp_true,       # Looks like: "true"
@@ -718,7 +719,6 @@ def try_exp(code_tokens : list, code_pointer : int, caller : str = "", recursion
         try_exp_number,     # Looks like: "5" | "3.25"
         try_exp_string,     # Looks like: '"asd"' (between quotes)
         try_exp_ellipsis,   # Looks like: "..."
-        try_exp_prefixexp,  # Looks like: <var> | "(" <exp> ")"
         try_exp_unop,       # Looks like: unop <exp>
     ]
 
@@ -734,8 +734,8 @@ def grammar_get_exp(code_tokens : list, code_pointer : int, caller : str = "", r
     #print(caller, "-> grammar_get_exp", recursion_depth)
     if code_pointer < len(code_tokens) and code_tokens[code_pointer].value == "\tEOF": return False
 
-    #print_tokens(code_tokens[code_pointer::], "Exp")
-    #print("---")
+    print_tokens(code_tokens[code_pointer::], "Exp")
+    print("---")
 
     result = try_exp(code_tokens, code_pointer, caller, recursion_depth + 1)
 
@@ -968,9 +968,9 @@ def try_block_statement(code_tokens : list, code_pointer : int, caller : str = "
 
     while iter < max_iter and code_pointer + pointer_offset < len(code_tokens):
         current_token = code_tokens[code_pointer + pointer_offset]
-        log_group(f"Single statement ({current_token})")
+        #log_group(f"Single statement ({current_token})")
         result = grammar_get_statement(code_tokens, code_pointer + pointer_offset)
-        log_group_end()
+        #log_group_end()
 
         if result == False: break
 

@@ -1,0 +1,63 @@
+### Call hierarchy of the "model" function
+```
+model
+  grammar_get_chunk
+    grammar_get_block
+      try_block_statement
+        grammar_get_statement
+          try_statement
+            try_statement_semicolon
+            try_statement_assignment
+              grammar_get_varlist
+                grammar_get_var
+                  try_var
+                    try_var_prefix_name
+                      grammar_get_prefixexp
+                        try_prefixexp
+                          try_prefixexp_var
+                 |----------*grammar_get_var*
+                          try_prefixexp_exp
+                            grammar_get_exp
+                              try_exp
+                                try_exp_prefixexp
+                       |----------grammar_get_prefixexp
+                                try_exp_binop
+                             |----*grammar_get_exp*
+                             |----*grammar_get_exp*
+                                try_exp_nil
+                                try_exp_true
+                                try_exp_false
+                                try_exp_number
+                                try_exp_string
+                                try_exp_ellipsis
+                                try_exp_unop
+                             |----*grammar_get_exp*
+                    try_var_name
+              grammar_get_explist
+                grammar_get_exp
+                  try_exp
+                    try_exp_prefixexp
+                      grammar_get_prefixexp
+                        try_prefixexp
+                          try_prefixexp_var
+                            grammar_get_var
+                              try_var
+                                try_var_prefix_name
+                       |----------*grammar_get_prefixexp*
+                          try_prefixexp_exp
+                 |----------*grammar_get_exp*
+                    try_exp_binop
+                 |----*grammar_get_exp*
+                 |----*grammar_get_exp*
+                    try_exp_nil
+                    try_exp_true
+                    try_exp_false
+                    try_exp_number
+                    try_exp_string
+                    try_exp_ellipsis
+                    try_exp_unop
+                 |----*grammar_get_exp*
+
+- Number of loops: 9
+- Deepest nesting: 17
+```
