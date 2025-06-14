@@ -249,7 +249,9 @@ def test_code(code : str):
         test_fail()
     else:
         print(tokens)
+        tokeniser.print_parsed_tokens(tokens)
         test_pass()
+
 
     print("\nLogs:")
     tokeniser.print_logs()
@@ -347,7 +349,10 @@ test_statement('house.door, a = 12., "string"', ["assignment", ["house.door", "a
 test_statement('house.door., a = 12., "string"', "error")
 test_statement('house.door, = 5', "error")
 
-test_code('house.door = 5\na = 6')
+test_code(
+"""
+house.door = 5, 6
+""")
 
 ##############
 # Evaluation #

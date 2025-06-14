@@ -17,13 +17,12 @@ Made by: Barni - 2025.03.14
 
 """
 TODO:
-Floats: .5.0 evals to <number literal> .5 + <number literal> .0
 - prefixexp -> functioncall
 - prefixexp -> "(" <exp> ")"
 
 BUG:
+- exp -> Numeral: '.5.0' evals to <number literal> .5 + <number literal> .0 so no 'wrong number' error
 - exp -> Numeral -> "5." evals with the wrong place. (col and row)
-- var -> prefixexp . Name -> "a.b." evals to "a.b.", so variable names and access paths must be validated again.
 
 NOTE:
 ###############################
@@ -183,6 +182,93 @@ def print_tokens(token_list : list, title : str = "") -> None:
 
     for token in token_list:
         print(token)
+"""
+[
+    {
+        'type': 'statement',
+        'stat_type': 'assignment',
+        'varlist': {
+            'type': 'varlist',
+            'vars': [
+                {
+                    'type': 'var',
+                    'value': 'house.door',
+                    'row': 0, 'col': 0
+                }
+            ]
+        },
+
+        'explist': {
+            'type': 'explist',
+            'exps': [
+                {
+                    'type': 'exp',
+                    'exp_type': <TokenType.NUMBER_LITERAL: 6>,
+                    'value': '5',
+                    'row': 0, 'col': 13
+                }
+            ]
+        }
+    },
+    
+    {
+        'type': 'statement',
+        'stat_type': 'assignment',
+        'varlist': {
+            'type': 'varlist',
+            'vars': [
+                {
+                    'type': 'var',
+                    'value': 'a',
+                    'row': 1, 'col': 0
+                }
+            ]
+        },
+        
+        'explist': {
+            'type': 'explist',
+            'exps': [
+                {
+                    'type': 'exp',
+                    'exp_type': <TokenType.NUMBER_LITERAL: 6>,
+                    'value': '6',
+                    'row': 1, 'col': 4
+                }
+            ]
+        }
+    }
+]
+"""
+
+def print_parsed_tokens(token_list : list, indentation_level : int = 0) -> None:
+    tab = " " * indentation_level
+    tab2 = " " * (indentation_level + 4)
+
+    for t in token_list:
+        #print("TOKEN LIST", token_list, "TOKEN:", t)
+        print(tab + f"{t['type'].capitalize()}:", end="")
+
+        match t["type"]:
+            case "var":
+                print(f" '{t['value']}'")
+            case "exp":
+                print(f" '{t['value']}' ({t['exp_type']})")
+            case "varlist":
+                print()
+                print_parsed_tokens(t["vars"], indentation_level + 4)
+            case "explist":
+                print()
+                print_parsed_tokens(t["exps"], indentation_level + 4)
+            case "statement":
+                print()
+                print(tab2 + f"Type: '{t['stat_type']}'")
+                match t["stat_type"]:
+                    case "semicolon":
+                        pass
+                    case "assignment":
+                        print_parsed_tokens([t["varlist"]], indentation_level + 4)
+                        print_parsed_tokens([t["explist"]], indentation_level + 4)
+
 
 ################
 ## Normaliser ##
