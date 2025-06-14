@@ -100,8 +100,6 @@ def __remove_parent(node : dict):
 def print_logs():
     global __log_tree_print_depth
 
-    print()
-
     reversed_log_tree = []
 
     # Reverse log tree (do not store parents, but the children)

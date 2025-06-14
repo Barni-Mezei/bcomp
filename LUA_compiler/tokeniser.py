@@ -17,11 +17,11 @@ Made by: Barni - 2025.03.14
 
 """
 TODO:
+Floats: .5.0 evals to <number literal> .5 + <number literal> .0
 - prefixexp -> functioncall
 - prefixexp -> "(" <exp> ")"
 
 BUG:
-- exp -> Numeral -> ".5.4.3." evals to "3.0", so closng "." is stronger. -> basically no invalid numbers.
 - exp -> Numeral -> "5." evals with the wrong place. (col and row)
 - var -> prefixexp . Name -> "a.b." evals to "a.b.", so variable names and access paths must be validated again.
 
@@ -593,7 +593,9 @@ def grammar_get_exp(code_tokens : list, code_pointer : int, caller : str = "", r
 
     result = try_exp(code_tokens, code_pointer, caller, recursion_depth + 1)
 
-    if result == False: return False
+    if result == False:
+        log(f"Invalid exp detected! {code_tokens[code_pointer].place}", "error")
+        return False
     return result[0], result[1]
 
 
@@ -618,13 +620,15 @@ def try_var_prefix_name(code_tokens : list, code_pointer : int, caller = "", rec
         mid = code_tokens.pop(code_pointer)
         bottom = code_tokens.pop(code_pointer)
 
+        #print("Top:", top, "mid", mid, "bottom", bottom)
+
         if bottom.type != TokenType.IDENTIFIER:
-            code_tokens.append(bottom)
+            code_tokens.insert(code_pointer, bottom)
             bottom = Token()
+            if mid.value == ".": return False
 
         new_token = Token(TokenType.IDENTIFIER, top.value + mid.value + bottom.value, top.row, top.col)
 
-        #print("Top:", top, "mid", mid, "bottom", bottom)
         #print("New token:", new_token)
 
         code_tokens.insert(code_pointer, new_token)
@@ -644,6 +648,7 @@ def try_var(code_tokens : list, code_pointer : int, caller : str = "", recursion
 
     # Return with the result
     for index, expression in enumerate(all_vars):
+        #print("trying", index)
         result = expression(code_tokens, code_pointer, caller, recursion_depth)
         if result != False: return result
 
@@ -656,7 +661,9 @@ def grammar_get_var(code_tokens : list, code_pointer : int, caller : str = "", r
 
     result = try_var(code_tokens, code_pointer, caller, recursion_depth + 1)
 
-    if result == False: return False
+    if result == False:
+        log(f"Invalid var detected! {code_tokens[code_pointer].place}", "error")
+        return False
     return result[0], result[1]
 
 
@@ -690,9 +697,7 @@ def grammar_get_explist(code_tokens : list, code_pointer : int, caller : str = "
         else:
             result = grammar_get_exp(code_tokens, code_pointer + pointer_offset, "explist", recursion_depth + 1)
 
-            if result == False:
-                log(f"Invalid exp detected! {token.place}", "error")
-                return False
+            if result == False: return False
 
             out.append(result[0])
             pointer_offset += result[1]
@@ -734,9 +739,7 @@ def grammar_get_varlist(code_tokens : list, code_pointer : int, caller : str = "
         else:
             result = grammar_get_var(code_tokens, code_pointer + pointer_offset, "varlist", recursion_depth + 1)
 
-            if result == False:
-                log(f"Invalid var detected! {token.place}", "error")
-                return False
+            if result == False: return False
 
             out.append(result[0])
             pointer_offset += result[1]
@@ -762,8 +765,6 @@ def try_statement_assignment(code_tokens : list, code_pointer : int, caller = ""
     result_explist = grammar_get_explist(code_tokens, code_pointer + pointer_offset + 1)
     log_group_end()
     if result_explist == False: return False
-
-    #print("EXPLIST", result_explist)
 
     pointer_offset += result_explist[1] + 1
 
