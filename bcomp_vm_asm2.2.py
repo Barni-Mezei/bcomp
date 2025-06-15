@@ -2,7 +2,7 @@ import sys
 from lib.lib import *
 import lib.matrixLib
 #import keyboard # type: ignore
-from time import sleep
+from time import sleep, time
 
 """
 TODO: argparse:
@@ -202,7 +202,7 @@ def executeLine(index : int) -> str:
         case "mov":
             if local_debug:
                 print(f"- Moving from {getRegName(arg1)} ({getReg(arg1)}) to {getRegName(arg2)} ({getReg(arg2)})")
-            registers[getRegKey(arg1)] = getReg(arg2)
+            registers[getRegKey(arg2)] = getReg(arg1)
 
         case "add":
             if local_debug:
@@ -530,7 +530,7 @@ def handleInputDevices(selectedDevice):
         ports['input'][selectedDevice][1] = int(user_in)
 
     if selectedDevice == 2: # Milliseconds
-        ports['input'][selectedDevice][1] = 0
+        ports['input'][selectedDevice][1] = trimToSize(round(time() * 1000), NUMBER_OF_BITS)
 
 def handleOutputDevices():
     #Console port[0]

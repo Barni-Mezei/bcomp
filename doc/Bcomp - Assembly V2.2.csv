@@ -10,7 +10,7 @@ Binary representiation,,,,,,,,Index,Menmonic,Name,Argument 1,Argument 2,Descript
 ,,,,,,,,8,MOV,Move value in reg,Reg. index 1,Reg. index 2,Copies R[a1] to R[a2],
 ,,,,,,,,9,ADD,Add,Reg. index,-,Adds RA and RB together and stores the result to R[a1],
 ,,,,,,,,10,INC,Increment,Reg. index,The value,Increments R[a1] by a2 and stores the result ot R[a1],
-,,,,,,,,11,SUB,Subtract,Reg. index,-,Subtracts RA and RB together and stores the result to RA,
+,,,,,,,,11,SUB,Subtract,Reg. index,-,Subtracts RB from RA and stores the result to R[a1],
 ,,,,,,,,12,DEC,Decrement,Reg. index,The value,Decrements R[a1] by a2 and stores the result ot R[a1],
 ,,,,,,,,13,BOR,Bitwise OR,Reg. index,-,Outputs the result of the bitwise OR operation on RA and RB,
 ,,,,,,,,14,SET,Set,The value,,Outputs the bitwise OR of RA and RSYS to RC,
