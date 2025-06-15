@@ -257,7 +257,7 @@ for _, data in enumerate(read_lines):
     for i, a in enumerate(arg):
         #print(i, "a:", a)
         try:
-            bin_arg += decToBin(parseNumber(a, throwError = True), 16 // len(arg))
+            bin_arg = decToBin(parseNumber(a, throwError = True), 16 // len(arg)) + bin_arg
         except Exception as e:
             print(f"{RED}ERROR: Invalid argument! (Numbers only){WHITE}")
             exit()

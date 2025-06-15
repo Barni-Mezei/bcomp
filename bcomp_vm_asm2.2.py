@@ -151,7 +151,7 @@ def executeLine(index : int) -> str:
     mnemonic = command_lookup[registers['ins']]
 
     arg1 = binToDec(rom[counter][0][8::])
-    arg2 = binToDec(rom[counter][0][0:8])
+    arg2 = binToDec(rom[counter][0][:8])
 
     local_debug = debug or break_points[index] != 0
     has_jumped = False
@@ -621,9 +621,11 @@ def commandDumpRam():
 
 def commandDumpReg():
     print("Registers:")
+    i = 0
     for name in registers:
         value = registers[name]
-        print(f"{registers.get(name)}: {AQUA}{name.ljust(5, ' ')} {WHITE}{value:<5d} {GRAY}{decToBin(value, NUMBER_OF_BITS)}{WHITE}")
+        print(f"{i}: {AQUA}{name.ljust(5, ' ')} {WHITE}{value:<5d} {GRAY}{decToBin(value, NUMBER_OF_BITS)}{WHITE}")
+        i += 1
 
 def commandDumpPort():
     print(f"{AQUA}Input ports:             Output ports:")

@@ -291,11 +291,11 @@ class reverseForLoop(Macro):
         ]
 
         # Save register values
-        self.instructions += [
-            ["pop", "RWADR"],
-            ["pop", "RRADR"],
-            ["pop", "RA"],
-        ]
+        #self.instructions += [
+        #    ["pop", "RWADR"],
+        #    ["pop", "RRADR"],
+        #    ["pop", "RA"],
+        #]
 
         self.success = True
         return
