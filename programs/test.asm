@@ -4,7 +4,7 @@
 #printStr 0 20 20
 
 #forLoop 0 5 :log 0
-#reverseForLoop 0 5 :log 0
+;#reverseForLoop 0 5 :log 0
 hlt
 
 :log

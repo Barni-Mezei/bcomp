@@ -14,6 +14,7 @@ arg_parser.add_argument('input_file', help="The path to your '.asm' file")
 arg_parser.add_argument('-o', '--output-path', help="The path to the directory, that will contain your compiled code")
 arg_parser.add_argument('-f', '--file-name', help="The name of your compiled file. Filetype will be ignored!")
 arg_parser.add_argument('-cpp', '--cpp', default=False, action='store_true', help="Export as C++ array for importing to Arduino")
+arg_parser.add_argument('-ino', '--arduino', default=False, action='store_true', help="Export as C++ array in to the specified arduino file")
 arg_parser.add_argument('-v', '--version', default="0", type=str, help="The assembly version. Set to 0 to read from file. (Requires the 1st line to be a comment)")
 arg_parser.add_argument('-lm', '--list-macros', default=False, action='store_true', help="List all available macros for the specified assembly version")
 
@@ -280,10 +281,12 @@ save_name = give_new_type(arguments.input_file, ".o")
 if arguments.output_path: save_path = arguments.output_path
 if arguments.file_name: save_name = give_new_type(arguments.file_name + ".D", ".o")
 
+# Reset save name if saving to .h file
+if arguments.arduino: save_name = ""
+
 f = open(save_path + save_name, "w", encoding="utf8")
 
 print(f"--- Writing to: {AQUA}{os.path.join(save_path, save_name)}{WHITE}")
-
 
 if arguments.cpp:
     # As valid C++ code
@@ -292,12 +295,25 @@ if arguments.cpp:
 
         f.write("{" + str(ins) + "," + str(arg) + "},\n")
 
-        #f.write(f"rom[rom_index  ].ins  = {ins};\n")
-        #f.write(f"rom[rom_index++].arg  = {arg};\n")
+if arguments.arduino:
+    # As valid C++ code to rom.h
 
-    #f.write(f"rom_length = rom_index;\n")
-    #f.write(f"rom_index--;")
+    f.write("typedef struct {\n")
+    f.write("  unsigned int ins;\n")
+    f.write("  unsigned int arg;\n")
+    f.write("} Command;\n")
+    f.write("\n")
+    f.write("const PROGMEM Command rom[] = {")
 
+    for i,ins in enumerate(out[::2]):
+        arg = out[i*2+1]
+
+        f.write("\n{" + str(ins) + "," + str(arg) + "},")
+
+    f.write("\n};\n\n")
+
+    f.write(f"int rom_index = 0;\n")
+    f.write(f"int rom_length = sizeof(rom) / sizeof(rom[0]);")
 else:
     # As comma separated values
     for i,ins in enumerate(out[::2]):
