@@ -1,7 +1,7 @@
 import sys
 
-# Import compiler data
 if "misc" not in sys.modules: from misc import *
+if "re" not in sys.modules: import re
 
 class Lexer:
     string : str = ""
@@ -15,6 +15,29 @@ class Lexer:
             yield c
 
         return None
+
+    # Pops a token from self.tokens at the specified index, and returns with the index
+    def _remove_token(self, index : int) -> None:
+        if index > 0 and index < len(self.tokens):
+            self.tokens.pop(index)
+        
+        return index
+
+    def get_token_type(self, token_value : str) -> TokenType:
+        if token_value in ["\tEOL", "\tEOF", "\tSOF"]: return TokenType.SPECIAL
+        if token_value == "nil" or token_value == "NIL": return TokenType.NIL
+        if token_value == "true" or token_value == "false": return TokenType.BOOL_LITERAL
+        if token_value == "...": return TokenType.ELLIPSIS
+        if token_value in KEYWORDS: return TokenType.KEYWORD
+        if token_value in OPERATORS: return TokenType.OPERATOR
+        if re.search("^\".*\"|\'.*\'$", token_value): return TokenType.STRING_LITERAL
+        if re.search("^(?:(?:(?:[0-9_]+\\.)|(?:\\.[0-9_]+)|(?:[0-9_]+\\.[0-9_]+)|(?:[0-9_]+)|(?:[0-9_]+[eE][0-9_]+))|0[xX][0-9a-fA-F]+|0[bB][01]+)$", token_value): return TokenType.NUMBER_LITERAL
+        if re.search("^[a-zA-Z_]\\w*$", token_value): return TokenType.IDENTIFIER
+        if token_value == "--": return TokenType.COMMENT
+        if token_value in "({[": return TokenType.LEFT_PARENTHESIS
+        if token_value in ")}]": return TokenType.RIGHT_PARENTHESIS
+
+        return TokenType.UNKNOWN
 
     # Works on self.string and splits it in to tokens. The result is stored in self.tokens
     def _scan_string(self):
@@ -141,9 +164,86 @@ class Lexer:
 
     # Works on self.tokens and assigns a type to each one of them
     def _eval_tokens(self):
+        # Convert to token objects
         for index, t in enumerate(self.tokens):
-            new_token = Token(TokenType.UNKNOWN, t["value"], t["row"], t["col"])
+            new_token = Token(self.get_token_type(t["value"]), t["value"], t["row"], t["col"])
             self.tokens[index] = new_token
+
+
+        # Join multiline strings: [[ string ]]
+        is_in_multiline_string : bool = False
+        multiline_string : Token
+
+        index : int = 0
+        t : Token
+        while index >= 0 and index < len(self.tokens):
+            t = self.tokens[index]
+
+            # Check if starting token
+            if not is_in_multiline_string:
+                if t.value == "[":
+                    if index + 1 < len(self.tokens) and self.tokens[index + 1].value == "[":
+                        is_in_multiline_string = True
+                        self._remove_token(index)
+                        self._remove_token(index)
+                        multiline_string = Token(TokenType.STRING_LITERAL, "[[", t.row, t.col)
+                        continue
+
+            # Check if strating token
+            if is_in_multiline_string:
+                if t.value == "]":
+                    if index + 1 < len(self.tokens) and self.tokens[index + 1].value == "]":
+                        is_in_multiline_string = False
+                        self._remove_token(index)
+                        self._remove_token(index)
+                        multiline_string.value += "]]"
+                        self.tokens.insert(index, multiline_string)
+                        continue
+                else:
+                    multiline_string.value += t.value
+                    self._remove_token(index)
+                    continue
+
+            index += 1
+
+        for t in self.tokens:
+            print(f"T: {t}")
+
+        # Remove unnecessary tokens like empty lines and comments
+        is_in_comment : bool = False
+        comment_line : int  = 0
+
+        index : int = 0
+        t : Token
+        while index >= 0 and index < len(self.tokens):
+            t = self.tokens[index]
+
+            # Skip token if inside a comment
+            if is_in_comment:
+                if t.row == comment_line:
+                    # Remove token if on the same line
+                    if t.type == TokenType.STRING_LITERAL and t.value[0] == "[": # End comment if multiline string
+                        is_in_comment = False
+                        comment_line = 0
+
+                    self._remove_token(index)
+                    continue
+                else:
+                    # New line -> reset comment
+                    is_in_comment = False
+                    comment_line = 0
+
+            if not is_in_comment and t.type == TokenType.COMMENT:
+                is_in_comment = True
+                comment_line = t.row
+                self._remove_token(index)
+                continue
+
+            if t.value in WHITESPACE or t.value == "":
+                self._remove_token(index)
+                continue
+
+            index += 1
 
     def tokenise_string(self, input_string : str) -> list:
         self.string = input_string

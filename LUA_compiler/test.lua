@@ -1,5 +1,10 @@
-if a >= 4 then
-    print("Hello, world!") -- coment as a sd
-end
+a = 5 -- asd as dasd
+--empty line
+print(--[[asdasd]]"Hello, world!") -- comment
 
-print(--[[asdasdasd]]"asd")
+a = --[[asdasd
+as
+d
+asdasdsd
+a
+]] sada

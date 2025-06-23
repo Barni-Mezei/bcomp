@@ -56,9 +56,7 @@ TOKEN_SEPARATORS = [
     ":",
     ".",
     "...",
-    "--[[",
     "--",
-    "]]",
     "(",
     ")",
     "{",
@@ -106,20 +104,22 @@ KEYWORDS = [
 ]
 
 class TokenType(Enum):
-    UNKNOWN = -1
-    KEYWORD = 0
-    COMMENT = 1
-    IDENTIFIER = 2
-    TABLE = 3
-    OPERATOR = 4
-    STRING_LITERAL = 5
-    NUMBER_LITERAL = 6
-    BOOL_LITERAL = 7
-    ELLIPSIS = 8
-    NIL = 9
-    UNARY_EXPRESSION = 10 # ~, not
-    BINARY_EXPRESSION= 11 # +, and
-    SPECIAL = 99 # The control characters
+    UNKNOWN                     = -1
+    KEYWORD                     = 0  # while, if
+    COMMENT                     = 1  # --
+    IDENTIFIER                  = 2  # Variable names
+    NUMBER_LITERAL              = 3  # "0.0" or "0." or ".0"
+    BOOL_LITERAL                = 4  # true or false
+    STRING_LITERAL              = 5  # "string"
+    MULTILINE_STRING_LITERAL    = 5  # "string"
+    ELLIPSIS                    = 6  # ...
+    NIL                         = 7  # nil
+    OPERATOR                    = 8  # =
+    UNARY_OPERATOR              = 9  # ~, not
+    BINARY_OPERATOR             = 10 # +, -, and
+    LEFT_PARENTHESIS            = 11 # Like ( { or [
+    RIGHT_PARENTHESIS           = 12 # Like ) } or ]
+    SPECIAL                     = 99 # The control characters, like EOF
 
 
 class CharacterPos:
@@ -129,6 +129,9 @@ class CharacterPos:
     def __init__(self, row : int, column : int) -> None:
         self.row = row
         self.col = column
+
+    def __str__(self):
+        return f"[Ln {str(self.row + 1)} Col {str(self.col + 1)}]"
 
 class Token:
     type : TokenType = TokenType.UNKNOWN
@@ -156,27 +159,29 @@ class Token:
         text_color = WHITE
 
         match self.type:
-            case TokenType.UNKNOWN: text_color = GRAY
-            case TokenType.KEYWORD: text_color = RED
-            case TokenType.COMMENT: text_color = GRAY
-            case TokenType.IDENTIFIER: text_color = WHITE
-            case TokenType.TABLE: text_color = WHITE
-            case TokenType.OPERATOR: text_color = AQUA
-            case TokenType.STRING_LITERAL: text_color = YELLOW
-            case TokenType.NUMBER_LITERAL: text_color = AQUA
-            case TokenType.BOOL_LITERAL: text_color = GREEN
-            case TokenType.ELLIPSIS: text_color = AQUA
-            case TokenType.NIL: text_color = RED
-            case TokenType.UNARY_EXPRESSION: text_color = WHITE
-            case TokenType.BINARY_EXPRESSION: text_color = WHITE
-            case TokenType.SPECIAL: text_color = RED
+            case TokenType.UNKNOWN:                     text_color = GRAY
+            case TokenType.KEYWORD:                     text_color = RED
+            case TokenType.COMMENT:                     text_color = GRAY
+            case TokenType.IDENTIFIER:                  text_color = WHITE
+            case TokenType.NIL:                         text_color = RED
+            case TokenType.ELLIPSIS:                    text_color = AQUA
+            case TokenType.NUMBER_LITERAL:              text_color = AQUA
+            case TokenType.BOOL_LITERAL:                text_color = GREEN
+            case TokenType.STRING_LITERAL:              text_color = YELLOW
+            case TokenType.MULTILINE_STRING_LITERAL:    text_color = YELLOW
+            case TokenType.OPERATOR:                    text_color = AQUA
+            case TokenType.UNARY_OPERATOR:              text_color = AQUA
+            case TokenType.BINARY_OPERATOR:             text_color = AQUA
+            case TokenType.LEFT_PARENTHESIS:            text_color = YELLOW
+            case TokenType.RIGHT_PARENTHESIS:           text_color = YELLOW
+            case TokenType.SPECIAL:                     text_color = RED
 
-        text = text_color # Set color
+        text = text_color # Set text color
         text += f"{str(self.type).split('.')[1]:<20}" # Append type enum name
         text += WHITE
-        text += self.place
+        text += f"{self.place:<15} " # Add place in the string
 
-        if self.type == TokenType.SPECIAL:
+        if self.type == TokenType.SPECIAL: # Print value, colored based on the type
             if self.value == "SOF": text += GREEN
             else: text += RED
             text += self.value
@@ -184,6 +189,5 @@ class Token:
             text += repr(self.value)
 
         text += WHITE
-
 
         return text
