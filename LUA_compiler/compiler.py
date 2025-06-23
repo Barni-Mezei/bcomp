@@ -1,9 +1,7 @@
 """
-Assembly version: bcomp assembly V1.1
 LUA version: 5.3
 
 Resources:
-https://huggingface.co/learn/nlp-course/chapter6/8
 https://www.lua.org/manual/5.3/manual.html
 
 
@@ -15,13 +13,56 @@ Made by: Barni - 2025.06.23
 [x] Assembler - Create machine code from the assembly code
 """
 
+import importlib
+import argparse
 from misc import *
 from lexer import Lexer
-#import parser
+#from parser import Parser
 
+arg_parser = argparse.ArgumentParser(
+    exit_on_error = True,
+    prog = "BCOMP LUA to Assmebly compiler",
+    description = "This program compiles LUA scripts to BCOMP Assembly",
+    usage="""Specify the file, containing the LUA code, set the output file name and the assembly version, and run the script.
+IMPORTANT: Supported lua version: 5.3""",
+)
+
+arg_parser.add_argument('input_file', help="The path to your LUA source file")
+arg_parser.add_argument('-o', '--output-path', help="The path of the output file, optionally containing the file name itself")
+arg_parser.add_argument('-v', '--version', default="2.0", type=str, help="The assembly version. This must be specified!")
+
+#Parse command line arguments
+try:
+    arguments = arg_parser.parse_args()
+except Exception as e:
+    print(f"{RED}ERROR: {str(e).capitalize()}{WHITE}")
+    exit()
+
+
+ASM_VERSION = arguments.version
+
+# Import the correct compiler version
+COMPILER = importlib.import_module(f"compiler_asm{ASM_VERSION.replace('.', '_')}")
+
+# Start input file processing
 lexer = Lexer()
 
-lexer.tokenise_file("test.lua")
+# Try opening and lexically analyzing the specified file
+try:
+    lexer.tokenise_file(arguments.input_file)
+except Exception as e:
+    print(f"{RED}ERROR: {str(e).capitalize()}{WHITE}")
+    exit()
+
+"""
+
+parser = Parser(lexer) # Generates parse tree
+
+compiler = COMPILER.Compiler(parser) 
+
+compiler.compile_to_file("output.asm") # Compiles and outputs to file
+
+"""
 
 print("Lexer output:")
 line_num = 0
@@ -47,3 +88,19 @@ while t := lexer.next():
             print(f"{indent_char*t.col}{t.color}{t.value}", end = WHITE)
             was_token = True
 print("\n-----------------")
+
+
+
+#Writing to file
+def path_leaf(path):
+    head, tail = os.path.split(path)
+    return tail or os.basename(head)
+
+def give_new_type(full_file_path, new_type):
+    return ".".join(path_leaf(full_file_path).split(".")[0:-1]) + new_type
+
+save_path = "../programs/" if os.path.exists("../programs/") else "./"
+save_name = give_new_type(arguments.input_file, ".o")
+
+if arguments.output_path: save_path = arguments.output_path
+if arguments.file_name: save_name = give_new_type(arguments.file_name + ".D", ".asm")
