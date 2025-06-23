@@ -7,28 +7,64 @@ AQUA = "\033[36m"
 GRAY = "\033[90m"
 WHITE = "\033[0m"
 
+# Unary operations
+UNOP = [
+    "-",
+    "not",
+    "#",
+    "~"
+]
 
-
-UNOP = ["-", "not", "#", "~"]
+# Binary operations
 BINOP = ["+", "-", "*", "/", "//", "^", "%",
          "&", "~", "|", ">>", "<<", ".."
          "<", "<=", ">", ">=", "==", "~=",
          "and", "or"]
 
-OPERATORS = UNOP + BINOP
+# All operations + assignment
+OPERATORS = [
+    "="
+] + UNOP + BINOP
 
+# Whitespaces
+WHITESPACE = [
+    " ",
+    "\t",
+    "\n",
+    "\r",
+]
+
+# Numerical digits
+DIGIT = [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+]
+
+# All possible token separators
 TOKEN_SEPARATORS = [
     "\n",
     " ",
     ",",
     ":",
     ".",
+    "...",
+    "--[[",
+    "--",
+    "]]",
     "(",
     ")",
     "{",
     "}",
     "[",
-    "]"
+    "]",
 ] + OPERATORS
 
 BLOCK_BOUNDARY = [
@@ -36,12 +72,14 @@ BLOCK_BOUNDARY = [
     "end"
 ]
 
+# String boundaries, quotes
 STRING_BOUNDARY = [
     "\"",
     "'",
     "`"
 ]
 
+# All the LUA keywords
 KEYWORDS = [
     "and",
     "break",
@@ -102,7 +140,8 @@ class Token:
         self.value = value
         self._place = CharacterPos(row, col)
 
-    def get_place_str(self) -> str:
+    @property
+    def place(self) -> str:
         return f"[Ln {str(self._place.row + 1)} Col {str(self._place.col + 1)}]"
 
     @property
@@ -132,4 +171,19 @@ class Token:
             case TokenType.BINARY_EXPRESSION: text_color = WHITE
             case TokenType.SPECIAL: text_color = RED
 
-        return f"{text_color}{str(self.type).split('.')[1]:<20}{WHITE}{self.place:<15}{(GREEN if self.value == '\tSOF' else RED) + self.value.replace(chr(9), '') + WHITE if self.type == TokenType.SPECIAL else repr(self.value)}"
+        text = text_color # Set color
+        text += f"{str(self.type).split('.')[1]:<20}" # Append type enum name
+        text += WHITE
+        text += self.place
+
+        if self.type == TokenType.SPECIAL:
+            if self.value == "SOF": text += GREEN
+            else: text += RED
+            text += self.value
+        else:
+            text += repr(self.value)
+
+        text += WHITE
+
+
+        return text
