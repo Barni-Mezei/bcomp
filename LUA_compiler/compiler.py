@@ -15,9 +15,10 @@ Made by: Barni - 2025.06.23
 
 import importlib
 import argparse
+import os
 from misc import *
 from lexer import Lexer
-#from parser import Parser
+from parser import Parser, ParsingError
 
 arg_parser = argparse.ArgumentParser(
     exit_on_error = True,
@@ -29,7 +30,7 @@ IMPORTANT: Supported lua version: 5.3""",
 
 arg_parser.add_argument('input_file', help="The path to your LUA source file")
 arg_parser.add_argument('-o', '--output-path', help="The path of the output file, optionally containing the file name itself")
-arg_parser.add_argument('-v', '--version', default="2.0", type=str, help="The assembly version. This must be specified!")
+arg_parser.add_argument('-v', '--version', default="2.2", type=str, help="The assembly version. This must be specified!")
 
 #Parse command line arguments
 try:
@@ -41,28 +42,31 @@ except Exception as e:
 
 ASM_VERSION = arguments.version
 
+print(f"--- Importing compiler: {AQUA}{ASM_VERSION}{WHITE}")
+
 # Import the correct compiler version
-COMPILER = importlib.import_module(f"compiler_asm{ASM_VERSION.replace('.', '_')}")
+COMPILER = None
+
+try:
+    COMPILER = importlib.import_module(f"compiler_asm{ASM_VERSION.replace('.', '_')}")
+except Exception as e:
+    print(f"{RED}ERROR: {str(e).capitalize()}{WHITE}")
+    exit()
+
+###################
+# Generate tokens #
+###################
+print(f"--- Lexing source code")
 
 # Start input file processing
 lexer = Lexer()
 
-# Try opening and lexically analyzing the specified file
+# Try lexing the file
 try:
     lexer.tokenise_file(arguments.input_file)
 except Exception as e:
     print(f"{RED}ERROR: {str(e).capitalize()}{WHITE}")
     exit()
-
-"""
-
-parser = Parser(lexer) # Generates parse tree
-
-compiler = COMPILER.Compiler(parser) 
-
-compiler.compile_to_file("output.asm") # Compiles and outputs to file
-
-"""
 
 print("Lexer output:")
 line_num = 0
@@ -90,8 +94,19 @@ while t := lexer.next():
 print("\n-----------------")
 
 
+################
+# Parse tokens #
+################
+print(f"--- Parsing tokens")
 
-#Writing to file
+try:
+    parser = Parser(lexer) # Generates parse tree
+except ParsingError as e:
+    print(f"{RED}ERROR in file '{arguments.input_file}' on line {e.row}:")
+    print(f"{RED}\t{e}")
+    exit()
+
+# Get file path
 def path_leaf(path):
     head, tail = os.path.split(path)
     return tail or os.basename(head)
@@ -100,7 +115,15 @@ def give_new_type(full_file_path, new_type):
     return ".".join(path_leaf(full_file_path).split(".")[0:-1]) + new_type
 
 save_path = "../programs/" if os.path.exists("../programs/") else "./"
-save_name = give_new_type(arguments.input_file, ".o")
+save_path += give_new_type(arguments.input_file, ".asm")
 
 if arguments.output_path: save_path = arguments.output_path
-if arguments.file_name: save_name = give_new_type(arguments.file_name + ".D", ".asm")
+
+###################
+# Compile to file #
+###################
+print(f"--- Compiling to: {AQUA}{os.path.join(save_path)}{WHITE}")
+
+compiler = COMPILER.Compiler(parser) 
+
+compiler.compile_to_file(save_path)
