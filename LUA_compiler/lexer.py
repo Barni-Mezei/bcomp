@@ -5,17 +5,17 @@ BUG:
 that comments effect the next token, regardless of the space between them.
 
 """
-import sys
 
-if "misc" not in sys.modules: from misc import *
-if "re" not in sys.modules: import re
+from misc import *
+import re
 
 class Lexer:
     string : str = ""
     tokens : list = []
+    _code_pointer : int = 0
 
     def __init__(self):
-        pass
+        self._code_pointer = 0
 
     # Pops a token from self.tokens at the specified index, and returns with the index
     def _remove_token(self, index : int) -> None:
@@ -216,14 +216,33 @@ class Lexer:
         for index, t in enumerate(self.tokens):
             self.tokens[index] = Token(self.get_token_type(t["value"]), t["value"], t["row"], t["col"])
 
-        #return
+        # Join floats
+        index : int = 0
+        t : Token
+        while index >= 0 and index < len(self.tokens):
+            t = self.tokens[index]
+
+            # Join tokens if this is a dot and thenext one is a number
+            if t.value == "." and index + 1 < len(self.tokens) and self.tokens[index + 1].type == TokenType.NUMBER_LITERAL:
+                t.value = t.value + self.tokens[index + 1].value
+                self._remove_token(index + 1)
+                t.type = self.get_token_type(t.value)
+
+            # Complete number with leading 0 if omitted
+            if t.type == TokenType.NUMBER_LITERAL and t.value[0] == ".":
+                t.value = "0" + t.value
+
+            # Complete number with trailing 0 if omitted
+            if t.type == TokenType.NUMBER_LITERAL and t.value[-1] == ".":
+                t.value = t.value + "0"
+
+            index += 1
 
         # Remove unnecessary tokens like empty lines and comments
         is_in_comment : bool = False
         comment_line : int  = 0
 
-        index : int = 0
-        t : Token
+        index = 0
         while index >= 0 and index < len(self.tokens):
             t = self.tokens[index]
 
@@ -269,6 +288,26 @@ class Lexer:
 
             self._eval_tokens()
 
+    # Resets the code pointer
+    def reset_pointer(self):
+        self._code_pointer = 0
+
+    # Returns with the pointer's value
+    def get_pointer(self):
+        return self._code_pointer
+
+    # Returns with the next token, and advances the code pointer
+    def next(self):
+        token = self.peek()
+        self._code_pointer += 1
+        return token
+
+    # Returns with the next token, but does not advances the code pointer
+    def peek(self):
+        if self._code_pointer < len(self.tokens):
+            return self.tokens[self._code_pointer]
+        else:
+            return Token(TokenType.SPECIAL, "\tEOF")
 
 # Main script
 if __name__ == "__main__":
