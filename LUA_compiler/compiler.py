@@ -7,8 +7,42 @@ https://huggingface.co/learn/nlp-course/chapter6/8
 https://www.lua.org/manual/5.3/manual.html
 
 
-Made by: Barni - 2025.03.26
+Made by: Barni - 2025.06.23
 
-[ ] Pre-compiler     - Generate assembly code, with placeholders
-[ ] Compiler         - complete assembly code
+[x] Lexer     - Generate tokens from the input string
+[ ] Parser    - Generate tree from the tokens
+[ ] Compiler  - Generate asssembly code with macros based on the previously generated tree
+[x] Assembler - Create machine code from the assembly code
 """
+
+from misc import *
+from lexer import Lexer
+#import parser
+
+lexer = Lexer()
+
+lexer.tokenise_file("test.lua")
+
+print("Result ----------")
+line_num = 0
+was_token = False
+indent_char = "░"
+sep_char = " "
+for t in lexer.tokens:
+    if t.row == line_num:
+        if was_token:
+            print(f"{sep_char}{t.color}{t.value}{WHITE}", end="")
+        else:
+            print(f"{indent_char*t.col}{t.color}{t.value}{WHITE}", end="")
+            was_token = True
+    else:
+        print("\n" * (t.row - line_num), end = "")
+        #print()
+        line_num = t.row
+        was_token = False
+        if was_token:
+            print(f"{sep_char}{t.color}{t.value}{WHITE}", end="")
+        else:
+            print(f"{indent_char*t.col}{t.color}{t.value}{WHITE}", end="")
+            was_token = True
+print("-----------------")
