@@ -12,7 +12,6 @@ import re
 class Lexer:
     string : str = ""
     tokens : list = []
-    _code_pointer : int = 0
 
     def __init__(self):
         self._code_pointer = 0
@@ -181,7 +180,7 @@ class Lexer:
     
         # Insert an extra new line character at the end
         self.tokens.append({"value": "\n", "row": current_token_pos.row, "col": current_token_pos.col})
-        self.tokens.append({"value": "\tEOF", "row": current_token_pos.row + 1, "col": 0})
+        self.tokens.append({"value": "\tEOF", "row": current_token_pos.row, "col": current_token_pos.col})
 
 
         # Combine multi-token patterns like "==" and ".."
@@ -287,27 +286,6 @@ class Lexer:
             self._scan_string()
 
             self._eval_tokens()
-
-    # Resets the code pointer
-    def reset_pointer(self):
-        self._code_pointer = 0
-
-    # Returns with the pointer's value
-    def get_pointer(self):
-        return self._code_pointer
-
-    # Returns with the next token, and advances the code pointer
-    def next(self):
-        token = self.peek()
-        self._code_pointer += 1
-        return token
-
-    # Returns with the next token, but does not advances the code pointer
-    def peek(self):
-        if self._code_pointer < len(self.tokens):
-            return self.tokens[self._code_pointer]
-        else:
-            return Token(TokenType.SPECIAL, "\tEOF")
 
 # Main script
 if __name__ == "__main__":

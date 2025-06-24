@@ -73,7 +73,7 @@ line_num = 0
 was_token = False
 indent_char = " "
 sep_char = " "
-while t := lexer.next():
+for t in lexer.tokens:
     if t.value == "\tEOF": break
 
     if t.row == line_num:
@@ -100,9 +100,9 @@ print("\n-----------------")
 print(f"--- Parsing tokens")
 
 try:
-    parser = Parser(lexer) # Generates parse tree
+    parser = Parser(lexer.tokens) # Generates parse tree
 except ParsingError as e:
-    print(f"{RED}ERROR in file '{arguments.input_file}' on line {e.row}:")
+    print(f"{RED}ERROR in file '{arguments.input_file}' on {e.place}:")
     print(f"{RED}\t{e}")
     exit()
 
@@ -124,6 +124,6 @@ if arguments.output_path: save_path = arguments.output_path
 ###################
 print(f"--- Compiling to: {AQUA}{os.path.join(save_path)}{WHITE}")
 
-compiler = COMPILER.Compiler(parser) 
+compiler = COMPILER.Compiler(parser.tree) 
 
 compiler.compile_to_file(save_path)
