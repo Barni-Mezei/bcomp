@@ -99,12 +99,65 @@ print("\n-----------------")
 ################
 print(f"--- Parsing tokens")
 
+def print_parse_tree(token : dict, indentation_level : int = 0) -> None:
+    tab = " " * indentation_level
+    tab2 = " " * (indentation_level + 4)
+
+    #print("TOKEN", token)
+    print(tab + f"{token['type'].replace("_", " ").capitalize()}:", end="")
+
+    match token["type"]:
+        case "var":
+            print(f" '{token['value']}'")
+
+        case "exp":
+            if token['exp_type'] == TokenType.UNARY_OPERATOR:
+                print(f" '{token['operand']}'")
+                print_parse_tree(token['value'], indentation_level + 4)
+            elif token['exp_type'] == TokenType.BINARY_OPERATOR:
+                print(f" '{token['operand']}'")
+                print_parse_tree(token['value_a'], indentation_level + 4)
+                print_parse_tree(token['value_b'], indentation_level + 4)
+            else:
+                print(f" '{token['value']}' ({token['exp_type']})")
+
+        case "varlist":
+            print()
+            for v in token["vars"]: print_parse_tree(v, indentation_level + 4)
+
+        case "explist":
+            print()
+            for e in token["exps"]: print_parse_tree(e, indentation_level + 4)
+
+        case "statement":
+            print(f" ({token['stat_type']})")
+            match token["stat_type"]:
+                case "semicolon":
+                    pass
+                case "assignment":
+                    print_parse_tree(token["varlist"], indentation_level + 4)
+                    print_parse_tree(token["explist"], indentation_level + 4)
+
+        case "return_statement":
+            print()
+            print_parse_tree(token["explist"], indentation_level + 4)
+
+        case "block":
+            print()
+            print(tab2 + f"Statements:")
+            for s in token["statements"]: print_parse_tree(s, indentation_level + 8)
+
+            if token["return_statement"]:
+                print_parse_tree(token["return_statement"], indentation_level + 4)
+
 try:
     parser = Parser(lexer.tokens) # Generates parse tree
 except ParsingError as e:
     print(f"{RED}ERROR in file '{arguments.input_file}' on {e.place}:")
     print(f"{RED}\t{e}")
     exit()
+
+print_parse_tree(parser.tree)
 
 # Get file path
 def path_leaf(path):

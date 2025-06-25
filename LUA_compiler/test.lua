@@ -1,1 +1,3 @@
-a,b,c = 1,2
+a, b = 5
+b = 6
+return a

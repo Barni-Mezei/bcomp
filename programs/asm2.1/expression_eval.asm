@@ -1,4 +1,4 @@
-;asm   2.0
+;asm 2.0
 
 $char_space " "
 $char_left_par "("
