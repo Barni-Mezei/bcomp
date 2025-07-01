@@ -69,6 +69,7 @@ except Exception as e:
     exit()
 
 print("Lexer output:")
+
 line_num = 0
 was_token = False
 indent_char = " "
@@ -112,12 +113,16 @@ def print_parse_tree(token : dict, indentation_level : int = 0) -> None:
 
         case "exp":
             if token['exp_type'] == TokenType.UNARY_OPERATOR:
-                print(f" '{token['operand']}'")
+                print(f" '{token['operand']}' (unop)")
                 print_parse_tree(token['value'], indentation_level + 4)
             elif token['exp_type'] == TokenType.BINARY_OPERATOR:
                 print(f" '{token['operand']}'")
                 print_parse_tree(token['value_a'], indentation_level + 4)
                 print_parse_tree(token['value_b'], indentation_level + 4)
+            elif token['exp_type'] == TokenType.LEFT_PARENTHESIS:
+                print(f" (")
+                print_parse_tree(token['value'], indentation_level + 4)
+                print(tab + ")")
             else:
                 print(f" '{token['value']}' ({token['exp_type']})")
 

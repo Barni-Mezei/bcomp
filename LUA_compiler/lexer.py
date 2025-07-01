@@ -180,7 +180,7 @@ class Lexer:
     
         # Insert an extra new line character at the end
         self.tokens.append({"value": "\n", "row": current_token_pos.row, "col": current_token_pos.col})
-        self.tokens.append({"value": "\tEOF", "row": current_token_pos.row, "col": current_token_pos.col})
+        self.tokens.append({"value": "\tEOF", "row": current_token_pos.row+1, "col": 0})
 
 
         # Combine multi-token patterns like "==" and ".."

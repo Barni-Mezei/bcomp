@@ -24,22 +24,31 @@ class Parser:
     tokens : list
     tree : dict
     code_pointer : int
-    max_depth : int # The maximum number of chained a.b.c.d.e.f... and a[b[c[d[]]]]
-    depth : int
+    recursion = { # The maximum number of chained 
+        "prefixexp": { # prefixexp: "a.b.c.d.e.f" or "a[b[c[d[]]]]"
+            "value": 0,
+            "current_max": 5,
+            "max": 5,
+        },
+
+        "exp": { # binop "a + b + c + d + e" or "a and b or c"
+            "value": 0,
+            "current_max": 5,
+            "max": 5,
+        },
+    }
 
     error_stack : list
 
-    log_level : int
+    log_level : int = 0
     debug_indent : int
 
     def __init__(self, tokens):
         self.tokens = tokens
         self.code_pointer = 0
-        self.max_depth = 5
-        self.depth = 0
+
 
         self.error_stack = []
-        self.log_level = 2
         self.debug_indent = 0
 
         self.generate_parse_tree()
@@ -47,12 +56,17 @@ class Parser:
     def log_function(func):
         def wrapper(*args, **kwargs):
             self = args[0]
-            if self.log_level < 2: return
-            print(f"{'| ' * self.debug_indent}Function ({self.depth}): {AQUA}{inspect.stack()[1][3]}{WHITE} Current token: {self._peek()}")
-            self.debug_indent += 1
+            
+            if self.log_level >= 2:
+                print(f"{'| ' * self.debug_indent}Function: {AQUA}{inspect.stack()[1][3]}{WHITE} Current token: {self._peek()}")
+                self.debug_indent += 1
+            
             result = func(*args, **kwargs)
-            self.debug_indent -= 1
-            print(f"{'| ' * self.debug_indent}└─")
+            
+            if self.log_level >= 2:
+                self.debug_indent -= 1
+                print(f"{'| ' * self.debug_indent}└─")
+            
             return result
         return wrapper
 
@@ -84,25 +98,32 @@ class Parser:
         self.code_pointer += 1
         return t
 
-    def accept(self, value : str = None, type : TokenType = None):
-        if value:
-            if self._peek().value == value:
-                self._next()
-                return True
-        if type:
-            if self._peek().type == type:
-                self._next()
-                return True
-        return False
+    def accept(self, value : str|list = None, token_type : TokenType = None):
+        match : int = 0
+        target_match : int = 0
+        next_token : Token = self._peek()
 
-    def expect(self, value : str = None, type : TokenType = None):
+        if value:
+            target_match += 1
+            print("- value", value, type(value) == list)
+            if type(value) == list and next_token.value in value: match += 1
+            elif next_token.value == value: match += 1
+
+        if token_type:
+            target_match += 1
+            if next_token.type == token_type: match += 1
+
+        # Return
+        if match == target_match: self._next()
+        return match == target_match
+
+
+    def expect(self, value : str = None, type : TokenType = None, message = ""):
         if self.accept(value, type): return True
         
         t = self._peek()
 
-        #self.push_error(ParsingError(t.row, t.col, f"Expected: '{value}'"))
-        raise ParsingError(t.row, t.col, f"Expected: '{value}'")
-        return False
+        raise ParsingError(t.row, t.col, f"Unexpected symbol near '{self._peek_prev().value}' expected '{value}'" + message)
 
     def push_error(self, error : ParsingError):
         self.error_stack.append(error)
@@ -121,14 +142,21 @@ class Parser:
 
     @log_function
     def try_prefixexp_exp(self):
+        print("Trying (exp)")
         if self.accept(value = "("):
 
             start_parenthesis = self._peek_prev()
 
+            # Reset recursion counter inside parenthesis
+            self.recursion["exp"]["current_max"] += self.recursion["exp"]["max"]
             result = self.grammar_get_exp()
+            self.recursion["exp"]["current_max"] -= self.recursion["exp"]["max"]
+            #self.recursion["exp"]["value"] -= self.recursion["exp"]["max"]
+
+
             if not result: return False
 
-            self.expect(value = ")")
+            self.expect(value = ")", message = f" to close '(' at {start_parenthesis.place}")
 
             return {"type": "exp", "exp_type": TokenType.LEFT_PARENTHESIS, "value": result, "row": start_parenthesis.row, "col": start_parenthesis.col}
 
@@ -153,9 +181,6 @@ class Parser:
 
     @log_function
     def grammar_get_prefixexp(self):
-        if self.depth > self.max_depth: return False
-        else: self.depth += 1
-
         return self.try_prefixexp()
 
     #############
@@ -165,7 +190,7 @@ class Parser:
     # TERMINAL
     @log_function
     def try_exp_nil(self):
-        if self.accept(type = TokenType.NIL):
+        if self.accept(token_type = TokenType.NIL):
             return {"type": "exp", "exp_type": TokenType.NIL, "value": self._peek_prev().value, "row": self._peek_prev().row, "col": self._peek_prev().col}
 
         return False
@@ -173,7 +198,7 @@ class Parser:
     # TERMINAL
     @log_function
     def try_exp_ellipsis(self):
-        if self.accept(type = TokenType.ELLIPSIS):
+        if self.accept(token_type = TokenType.ELLIPSIS):
             return {"type": "exp", "exp_type": TokenType.ELLIPSIS, "value": self._peek_prev().value, "row": self._peek_prev().row, "col": self._peek_prev().col}
 
         return False
@@ -181,7 +206,7 @@ class Parser:
     # TERMINAL
     @log_function
     def try_exp_bool(self):
-        if self.accept(type = TokenType.BOOL_LITERAL):
+        if self.accept(token_type = TokenType.BOOL_LITERAL):
             return {"type": "exp", "exp_type": TokenType.BOOL_LITERAL, "value": self._peek_prev().value, "row": self._peek_prev().row, "col": self._peek_prev().col}
 
         return False
@@ -189,7 +214,7 @@ class Parser:
     # TERMINAL
     @log_function
     def try_exp_number(self):
-        if self.accept(type = TokenType.NUMBER_LITERAL):
+        if self.accept(token_type = TokenType.NUMBER_LITERAL):
             return {"type": "exp", "exp_type": TokenType.NUMBER_LITERAL, "value": self._peek_prev().value, "row": self._peek_prev().row, "col": self._peek_prev().col}
 
         return False
@@ -197,10 +222,10 @@ class Parser:
     # TERMINAL
     @log_function
     def try_exp_string(self):
-        if self.accept(type = TokenType.STRING_LITERAL):
+        if self.accept(token_type = TokenType.STRING_LITERAL):
             return {"type": "exp", "exp_type": TokenType.STRING_LITERAL, "value": self._peek_prev().value[1:-1], "row": self._peek_prev().row, "col": self._peek_prev().col}
 
-        if self.accept(type = TokenType.MULTILINE_STRING_LITERAL):
+        if self.accept(token_type = TokenType.MULTILINE_STRING_LITERAL):
             if self._peek_prev().value[2] == "=":
                 return {"type": "exp", "exp_type": TokenType.MULTILINE_STRING_LITERAL, "value": self._peek_prev().value[3:-3], "row": self._peek_prev().row, "col": self._peek_prev().col}
             else:
@@ -211,35 +236,44 @@ class Parser:
     def try_exp_prefixexp(self):
         return self.grammar_get_prefixexp()
 
-    """def try_exp_unop(code_tokens : list, code_pointer : int, caller = "", recursion_depth = 0):
-        if caller == "exp" and recursion_depth >= max_recursion_depth: return False
+    def try_exp_unop(self):
+        operator = self._peek()
+        if self.accept(token_type = TokenType.OPERATOR, value = UNOP):
+            result = self.grammar_get_exp()
+            if not result: return False
+            return {"type": "exp", "exp_type": TokenType.UNARY_OPERATOR, "operand": operator.value, "value": result, "row": self._peek_prev().row, "col": self._peek_prev().col}
 
-        if not code_tokens[code_pointer].value in UNOP: return False
+        return False
 
-        log_group("Expression")
-        result_exp = grammar_get_exp(code_tokens, code_pointer + 1, "exp", recursion_depth + 1)
-        log_group_end()
-        if result_exp == False: return False
 
-        return {"type": "exp", "exp_type": TokenType.UNARY_EXPRESSION, "operand": code_tokens[code_pointer].value, "value": result_exp[0]}, 1 + result_exp[1]
+    def try_exp_binop(self):
+        print("Trying binop")
+        result_exp1 = self.grammar_get_exp()
+        print("exp1", result_exp1)
 
-    def try_exp_binop(code_tokens : list, code_pointer : int, caller = "", recursion_depth = 0):
-        if caller == "exp" and recursion_depth >= max_recursion_depth: return False
+        if not result_exp1:
+            print("early ret", self.recursion["exp"]["value"], self._peek_prev())
+            return False
 
-        result_exp1 = grammar_get_exp(code_tokens, code_pointer, "exp", recursion_depth + 1)
-        if result_exp1 == False: return False
 
-        pointer_offset = result_exp1[1]
+        operator = self._peek()
+        if self.accept(token_type = TokenType.OPERATOR, value = BINOP):
+            result_exp2 = self.grammar_get_exp()
+            print("exp2", self.recursion["exp"]["value"], result_exp2)
+            if not result_exp2: return False
 
-        if not code_tokens[code_pointer + pointer_offset].value in BINOP: return False
+            return {"type": "exp", "exp_type": TokenType.BINARY_OPERATOR, "operand": operator.value, "value_a": result_exp1, "value_b": result_exp2}
 
-        result_exp2 = grammar_get_exp(code_tokens, code_pointer + pointer_offset + 1, "exp", recursion_depth + 1)
-        if result_exp2 == False: return False
 
-        pointer_offset += 1 + result_exp2[1]
+        print("return", self.recursion["exp"]["value"])
 
-        return {"type": "exp", "exp_type": TokenType.BINARY_EXPRESSION, "operand": code_tokens[code_pointer + result_exp1[1]].value, "value_a": result_exp1[0], "value_b": result_exp2[0]}, pointer_offset
-"""
+        #if self.recursion["exp"]["value"] == self.recursion["exp"]["max"]:
+        return result_exp1
+
+        #print("INCOMPLETE EXPRESSION")
+
+        #return False
+
     @log_function
     def try_exp(self):
         # Try all defined statements
@@ -251,15 +285,21 @@ class Parser:
             self.try_exp_number,        # Looks like: "5" | "3.25"
             self.try_exp_string,        # Looks like: '"asd"' (between quotes) or '[[asd]]' (in double brackets)
             #self.try_exp_binop,        # Looks like: <exp> binop <exp>
-            #self.try_exp_unop,         # Looks like: unop <exp>
+            self.try_exp_unop,         # Looks like: unop <exp>
         ]
+
+        if self.recursion["exp"]["value"] < self.recursion["exp"]["current_max"]:
+            self.recursion["exp"]["value"] += 1
+            all_expressions.insert(0, self.try_exp_binop)
 
         # Return with the result
         for index, expression in enumerate(all_expressions):
             result = expression()
+            if expression == self.try_exp_binop: self.recursion["exp"]["value"] -= 1
             if result != False: return result
 
         # Default to failure (no expression found)
+        #   self.recursion["exp"]["value"] -= 1
         return False
 
     @log_function
@@ -282,9 +322,7 @@ class Parser:
             result = self.grammar_get_exp()
 
             if not result:
-                #self.push_error(ParsingError(self._peek().row, self._peek().col, "Invalid expression!"))
                 raise ParsingError(self._peek().row, self._peek().col, "Invalid expression!")
-                return False
            
             output.append(result)
 
@@ -297,45 +335,47 @@ class Parser:
     # TERMINAL
     @log_function
     def try_var_name(self):
-        if self.accept(type = TokenType.IDENTIFIER):
+        if self.accept(token_type = TokenType.IDENTIFIER):
             return {"type": "var", "value": self._peek_prev().value, "row": self._peek_prev().row, "col": self._peek_prev().col}
 
         return False
 
     def try_var_prefix_name(self):
-        prefix_token = self._peek()
-
         prefix_result = self.grammar_get_prefixexp()
         if not prefix_result: return False
 
         if self.accept(value = "."):
-            if self.accept(type = TokenType.IDENTIFIER):
-                return {"type": "var", "value": prefix_token.value+"."+self._peek_prev().value, "row": prefix_token.row, "col":  prefix_token.col}
+            if self.accept(token_type = TokenType.IDENTIFIER):
+                return {"type": "var", "value": prefix_result["value"]+"."+self._peek_prev().value, "row": prefix_result["row"], "col":  prefix_result["col"]}
+            else:
+                raise ParsingError(prefix_result["row"], prefix_result["col"], f"Invalid idetifier: '{prefix_result["value"]}.'")
 
-        return False
+
+        return prefix_result
 
     @log_function
     def try_var(self):
         # Try all defined variables
         all_vars = [
             self.try_var_name,           # Looks like: [a-z][A-Z]*
-            self.try_var_prefix_name,    # Looks like: <prefiexp> "." [a-z][A-Z]
         ]
+
+        if self.recursion["prefixexp"]["value"] < self.recursion["prefixexp"]["current_max"]:
+            self.recursion["prefixexp"]["value"] += 1
+            all_vars.insert(0, self.try_var_prefix_name)    # Looks like: <prefiexp> "." [a-z][A-Z]
 
         # Return with the result
         for index, var in enumerate(all_vars):
-            #print("trying", index)
             result = var()
+            if var == self.try_var_prefix_name: self.recursion["prefixexp"]["value"] -= 1
             if result != False: return result
 
         # Default to failure (no var found)
+        #self.recursion["prefixexp"]["value"] -= 1
         return False
 
     @log_function
     def grammar_get_var(self):
-        #if self.depth > self.max_depth: return False
-        #else: self.depth += 1
-
         return self.try_var()
 
     #################
@@ -355,8 +395,7 @@ class Parser:
             result = self.grammar_get_var()
 
             if not result:
-                self.push_error(ParsingError(self._peek().row, self._peek().col, "Invalid identifier!"))
-                return False
+                raise ParsingError(self._peek().row, self._peek().col, "Invalid identifier!")
            
             output.append(result)
 
@@ -386,7 +425,7 @@ class Parser:
         self.expect(value = "=")
 
         result_explist = self.grammar_get_explist()
-        if not result_varlist: return False
+        if not result_explist: return False
 
         #print("result explist:", result_explist)
         #print(self.code_pointer, self._peek())
