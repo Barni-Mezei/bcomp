@@ -105,7 +105,6 @@ class Parser:
 
         if value:
             target_match += 1
-            print("- value", value, type(value) == list)
             if type(value) == list and next_token.value in value: match += 1
             elif next_token.value == value: match += 1
 
@@ -142,17 +141,14 @@ class Parser:
 
     @log_function
     def try_prefixexp_exp(self):
-        print("Trying (exp)")
         if self.accept(value = "("):
 
             start_parenthesis = self._peek_prev()
 
-            # Reset recursion counter inside parenthesis
+            # Reset recursion counter for expressions, inside parenthesis
             self.recursion["exp"]["current_max"] += self.recursion["exp"]["max"]
             result = self.grammar_get_exp()
             self.recursion["exp"]["current_max"] -= self.recursion["exp"]["max"]
-            #self.recursion["exp"]["value"] -= self.recursion["exp"]["max"]
-
 
             if not result: return False
 
@@ -247,32 +243,17 @@ class Parser:
 
 
     def try_exp_binop(self):
-        print("Trying binop")
         result_exp1 = self.grammar_get_exp()
-        print("exp1", result_exp1)
-
-        if not result_exp1:
-            print("early ret", self.recursion["exp"]["value"], self._peek_prev())
-            return False
-
+        if not result_exp1: return False
 
         operator = self._peek()
         if self.accept(token_type = TokenType.OPERATOR, value = BINOP):
             result_exp2 = self.grammar_get_exp()
-            print("exp2", self.recursion["exp"]["value"], result_exp2)
             if not result_exp2: return False
 
             return {"type": "exp", "exp_type": TokenType.BINARY_OPERATOR, "operand": operator.value, "value_a": result_exp1, "value_b": result_exp2}
 
-
-        print("return", self.recursion["exp"]["value"])
-
-        #if self.recursion["exp"]["value"] == self.recursion["exp"]["max"]:
         return result_exp1
-
-        #print("INCOMPLETE EXPRESSION")
-
-        #return False
 
     @log_function
     def try_exp(self):
@@ -419,16 +400,10 @@ class Parser:
         result_varlist = self.grammar_get_varlist()
         if not result_varlist: return False
 
-        #print("result varlist:", result_varlist)
-        #print(self.code_pointer, self._peek())
-
         self.expect(value = "=")
 
         result_explist = self.grammar_get_explist()
         if not result_explist: return False
-
-        #print("result explist:", result_explist)
-        #print(self.code_pointer, self._peek())
 
         return {"type": "statement", "stat_type": "assignment", "varlist": result_varlist, "explist": result_explist}
 
