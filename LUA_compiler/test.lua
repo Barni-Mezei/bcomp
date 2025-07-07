@@ -1,1 +1,3 @@
-a = "Hello".."world"
+local space = ' '
+out = "Hello"..space.."world"
+return out
