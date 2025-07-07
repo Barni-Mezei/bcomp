@@ -1,2 +1,1 @@
-a = 5
-local b = 6
+a = "Hello".."world"

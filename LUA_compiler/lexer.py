@@ -221,7 +221,7 @@ class Lexer:
         while index >= 0 and index < len(self.tokens):
             t = self.tokens[index]
 
-            # Join tokens if this is a dot and thenext one is a number
+            # Join tokens if this is a dot and the next one is a number
             if t.value == "." and index + 1 < len(self.tokens) and self.tokens[index + 1].type == TokenType.NUMBER_LITERAL:
                 t.value = t.value + self.tokens[index + 1].value
                 self._remove_token(index + 1)

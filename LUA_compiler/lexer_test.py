@@ -84,6 +84,8 @@ run_test('a, b = 4, 5', [Token(TokenType.IDENTIFIER, "a"), Token(TokenType.PUNCT
 run_test('a,b=4,5', [Token(TokenType.IDENTIFIER, "a"), Token(TokenType.PUNCTUATION, ","), Token(TokenType.IDENTIFIER, 'b'), Token(TokenType.OPERATOR, '='), Token(TokenType.NUMBER_LITERAL, "4"), Token(TokenType.PUNCTUATION, ","), Token(TokenType.NUMBER_LITERAL, '5')])
 run_test(' a,   b=   4, 5   ', [Token(TokenType.IDENTIFIER, "a"), Token(TokenType.PUNCTUATION, ","), Token(TokenType.IDENTIFIER, 'b'), Token(TokenType.OPERATOR, '='), Token(TokenType.NUMBER_LITERAL, "4"), Token(TokenType.PUNCTUATION, ","), Token(TokenType.NUMBER_LITERAL, '5')])
 
+run_test('var = "a".."b"', [Token(TokenType.IDENTIFIER, "var"), Token(TokenType.OPERATOR, "="), Token(TokenType.STRING_LITERAL, '"a"'), Token(TokenType.OPERATOR, '..'), Token(TokenType.STRING_LITERAL, '"b"')])
+
 ##############
 # Evaluation #
 ##############
