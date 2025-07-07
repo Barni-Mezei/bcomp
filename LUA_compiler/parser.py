@@ -8,7 +8,8 @@ block ::= {stat} [retstat]
 stat ::=  ';' | 
         varlist '=' explist | 
         break | 
-        do block end | 
+        do block end |
+        local namelist ['=' <explist>]
 
 prefixexp ::= var | '(' exp ')'
 
@@ -333,6 +334,30 @@ class Parser:
 
         return {"type": "explist", "exps": output}
 
+    #################
+    # Get <namelist> #
+    #################
+
+    # TOKEN
+    @log_function
+    def grammar_get_namelist(self):
+        token : Token = self._peek()
+        if not self.accept(token_type = TokenType.IDENTIFIER): return False
+        
+        output : list = [token.value]
+
+        while self.accept(value = ","):
+            token = self._peek()
+            self.expect(token_type = TokenType.IDENTIFIER, message = "Invalid identifier!")
+
+            #if not result:
+            #    raise ParsingError(self._peek().row, self._peek().col, "Invalid identifier!")
+        
+            output.append(token.value)
+
+        return {"type": "namelist", "names": output}
+
+
     #############
     # Get <var> #
     #############
@@ -353,7 +378,7 @@ class Parser:
             if self.accept(token_type = TokenType.IDENTIFIER):
                 return {"type": "var", "value": prefix_result["value"]+"."+self._peek_prev().value, "row": prefix_result["row"], "col":  prefix_result["col"]}
             else:
-                raise ParsingError(prefix_result["row"], prefix_result["col"], f"Invalid idetifier: '{prefix_result["value"]}.'")
+                raise ParsingError(prefix_result["row"], prefix_result["col"], f"Invalid identifier: '{prefix_result["value"]}.'")
 
 
         return prefix_result
@@ -459,6 +484,22 @@ class Parser:
 
         return False
 
+    # TOKEN
+    @log_function
+    def try_statement_local(self) -> dict:
+        if self.accept(token_type = TokenType.KEYWORD, value = "local"):
+            result_namelist = self.grammar_get_namelist()
+            if not result_namelist: raise ParsingError(self._peek_prev().row, self._peek_prev().col, f"Invalid identifier: '{self._peek_prev.value}'")
+
+            result_explist = False
+
+            if self.accept(value = "="):
+                result_explist = self.grammar_get_explist()
+
+            return {"type": "statement", "stat_type": "keyword", "value": "local", "namelist": result_namelist, "explist": result_explist, "row": self._peek_prev().row, "col": self._peek_prev().col}
+
+        return False
+
     @log_function
     def try_statement(self) -> dict:
         # Try all defined statements
@@ -467,6 +508,7 @@ class Parser:
             self.try_statement_assignment, # Looks like: "a.k, b = 'test', 8"
             self.try_statement_break, # Looks like: "break"
             self.try_statement_do, # Looks like: "do" <block> "end"
+            self.try_statement_local, # Looks like: "local" <namelist> ["=" <explist>]
         ]
 
         # Return with the first result

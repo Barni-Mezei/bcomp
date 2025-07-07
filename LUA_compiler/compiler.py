@@ -129,6 +129,10 @@ def print_parse_tree(token : dict, indentation_level : int = 0) -> None:
         case "varlist":
             print()
             for v in token["vars"]: print_parse_tree(v, indentation_level + 4)
+        
+        case "namelist":
+            print()
+            for n in token["names"]: print(tab2 + "Name: '" + n + "'")
 
         case "explist":
             print()
@@ -151,6 +155,12 @@ def print_parse_tree(token : dict, indentation_level : int = 0) -> None:
                             print(tab2 + f"{RED}do{WHITE}")
                             print_parse_tree(token["block"], indentation_level + 4)
                             print(tab2 + f"{RED}end{WHITE}")
+                            pass
+                        case "local":
+                            print(tab2 + f"{RED}local{WHITE}")
+                            print_parse_tree(token["namelist"], indentation_level + 4)
+                            if token["explist"]: 
+                                print_parse_tree(token["explist"], indentation_level + 4)
                             pass
 
         case "return_statement":
