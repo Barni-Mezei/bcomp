@@ -1,3 +1,27 @@
+"""
+The currently implemented BNF:
+------------------------------
+chunk ::= block
+
+block ::= {stat} [retstat]
+
+stat ::=  ';' | 
+        varlist '=' explist | 
+        break | 
+        do block end | 
+
+prefixexp ::= var | '(' exp ')'
+
+var ::=  Name | prefixexp '.' Name
+
+varlist ::= var {',' var}
+
+exp ::=  nil | false | true | Numeral | LiteralString | '...' | prefixexp | exp binop exp | unop exp 
+
+explist ::= exp {',' exp}
+------------------------------
+"""
+
 import inspect
 from misc import *
 
@@ -117,8 +141,8 @@ class Parser:
         return match == target_match
 
 
-    def expect(self, value : str = None, type : TokenType = None, message = ""):
-        if self.accept(value, type): return True
+    def expect(self, value : str = None, token_type : TokenType = None, message = ""):
+        if self.accept(value, token_type): return True
         
         t = self._peek()
 
@@ -154,7 +178,7 @@ class Parser:
 
             self.expect(value = ")", message = f" to close '(' at {start_parenthesis.place}")
 
-            return {"type": "exp", "exp_type": TokenType.LEFT_PARENTHESIS, "value": result, "row": start_parenthesis.row, "col": start_parenthesis.col}
+            return {"type": "exp", "exp_type": "parenthesis", "value": result, "row": start_parenthesis.row, "col": start_parenthesis.col}
 
 
         return False
@@ -187,7 +211,7 @@ class Parser:
     @log_function
     def try_exp_nil(self):
         if self.accept(token_type = TokenType.NIL):
-            return {"type": "exp", "exp_type": TokenType.NIL, "value": self._peek_prev().value, "row": self._peek_prev().row, "col": self._peek_prev().col}
+            return {"type": "exp", "exp_type": "nil", "value": self._peek_prev().value, "row": self._peek_prev().row, "col": self._peek_prev().col}
 
         return False
 
@@ -195,7 +219,7 @@ class Parser:
     @log_function
     def try_exp_ellipsis(self):
         if self.accept(token_type = TokenType.ELLIPSIS):
-            return {"type": "exp", "exp_type": TokenType.ELLIPSIS, "value": self._peek_prev().value, "row": self._peek_prev().row, "col": self._peek_prev().col}
+            return {"type": "exp", "exp_type": "ellipsis", "value": self._peek_prev().value, "row": self._peek_prev().row, "col": self._peek_prev().col}
 
         return False
 
@@ -203,7 +227,7 @@ class Parser:
     @log_function
     def try_exp_bool(self):
         if self.accept(token_type = TokenType.BOOL_LITERAL):
-            return {"type": "exp", "exp_type": TokenType.BOOL_LITERAL, "value": self._peek_prev().value, "row": self._peek_prev().row, "col": self._peek_prev().col}
+            return {"type": "exp", "exp_type": "bool", "value": self._peek_prev().value, "row": self._peek_prev().row, "col": self._peek_prev().col}
 
         return False
 
@@ -211,7 +235,7 @@ class Parser:
     @log_function
     def try_exp_number(self):
         if self.accept(token_type = TokenType.NUMBER_LITERAL):
-            return {"type": "exp", "exp_type": TokenType.NUMBER_LITERAL, "value": self._peek_prev().value, "row": self._peek_prev().row, "col": self._peek_prev().col}
+            return {"type": "exp", "exp_type": "number", "value": self._peek_prev().value, "row": self._peek_prev().row, "col": self._peek_prev().col}
 
         return False
 
@@ -219,13 +243,13 @@ class Parser:
     @log_function
     def try_exp_string(self):
         if self.accept(token_type = TokenType.STRING_LITERAL):
-            return {"type": "exp", "exp_type": TokenType.STRING_LITERAL, "value": self._peek_prev().value[1:-1], "row": self._peek_prev().row, "col": self._peek_prev().col}
+            return {"type": "exp", "exp_type": "string", "value": self._peek_prev().value[1:-1], "row": self._peek_prev().row, "col": self._peek_prev().col}
 
         if self.accept(token_type = TokenType.MULTILINE_STRING_LITERAL):
             if self._peek_prev().value[2] == "=":
-                return {"type": "exp", "exp_type": TokenType.MULTILINE_STRING_LITERAL, "value": self._peek_prev().value[3:-3], "row": self._peek_prev().row, "col": self._peek_prev().col}
+                return {"type": "exp", "exp_type": "multiline_string", "value": self._peek_prev().value[3:-3], "row": self._peek_prev().row, "col": self._peek_prev().col}
             else:
-                return {"type": "exp", "exp_type": TokenType.MULTILINE_STRING_LITERAL, "value": self._peek_prev().value[2:-2], "row": self._peek_prev().row, "col": self._peek_prev().col}
+                return {"type": "exp", "exp_type": "multiline_string", "value": self._peek_prev().value[2:-2], "row": self._peek_prev().row, "col": self._peek_prev().col}
 
         return False
 
@@ -237,7 +261,7 @@ class Parser:
         if self.accept(token_type = TokenType.OPERATOR, value = UNOP):
             result = self.grammar_get_exp()
             if not result: return False
-            return {"type": "exp", "exp_type": TokenType.UNARY_OPERATOR, "operand": operator.value, "value": result, "row": self._peek_prev().row, "col": self._peek_prev().col}
+            return {"type": "exp", "exp_type": "unary_expression", "operand": operator.value, "value": result, "row": self._peek_prev().row, "col": self._peek_prev().col}
 
         return False
 
@@ -251,7 +275,7 @@ class Parser:
             result_exp2 = self.grammar_get_exp()
             if not result_exp2: return False
 
-            return {"type": "exp", "exp_type": TokenType.BINARY_OPERATOR, "operand": operator.value, "value_a": result_exp1, "value_b": result_exp2}
+            return {"type": "exp", "exp_type": "binary_expression", "operand": operator.value, "value_a": result_exp1, "value_b": result_exp2}
 
         return result_exp1
 
@@ -407,12 +431,42 @@ class Parser:
 
         return {"type": "statement", "stat_type": "assignment", "varlist": result_varlist, "explist": result_explist}
 
+    # TERMINAL
+    @log_function
+    def try_statement_break(self) -> dict:
+        if self.accept(token_type = TokenType.KEYWORD, value = "break"):
+            return {"type": "statement", "stat_type": "keyword", "value": "break", "row": self._peek_prev().row, "col": self._peek_prev().col}
+
+        return False
+
+    # TOKEN
+    @log_function
+    def try_statement_do(self) -> dict:
+        if self.accept(token_type = TokenType.KEYWORD, value = "do"):
+
+            # Reset recursion limits
+            self.recursion["exp"]["current_max"] += self.recursion["exp"]["max"]
+            self.recursion["prefixexp"]["current_max"] += self.recursion["prefixexp"]["max"]
+            result = self.grammar_get_block()
+            self.recursion["exp"]["current_max"] -= self.recursion["exp"]["max"]
+            self.recursion["prefixexp"]["current_max"] -= self.recursion["prefixexp"]["max"]
+
+            if not result: return False
+
+            self.expect(token_type = TokenType.KEYWORD, value = "end")
+
+            return {"type": "statement", "stat_type": "keyword", "value": "do", "block": result, "row": self._peek_prev().row, "col": self._peek_prev().col}
+
+        return False
+
     @log_function
     def try_statement(self) -> dict:
         # Try all defined statements
         all_statements = [
             self.try_statement_semicolon, # Looks like: ";"
             self.try_statement_assignment, # Looks like: "a.k, b = 'test', 8"
+            self.try_statement_break, # Looks like: "break"
+            self.try_statement_do, # Looks like: "do" <block> "end"
         ]
 
         # Return with the first result

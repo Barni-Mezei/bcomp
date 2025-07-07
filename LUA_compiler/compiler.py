@@ -112,14 +112,14 @@ def print_parse_tree(token : dict, indentation_level : int = 0) -> None:
             print(f" '{token['value']}'")
 
         case "exp":
-            if token['exp_type'] == TokenType.UNARY_OPERATOR:
+            if token['exp_type'] == "unary_expression":
                 print(f" '{token['operand']}' (unop)")
                 print_parse_tree(token['value'], indentation_level + 4)
-            elif token['exp_type'] == TokenType.BINARY_OPERATOR:
+            elif token['exp_type'] == "binary_expression":
                 print(f" '{token['operand']}'")
                 print_parse_tree(token['value_a'], indentation_level + 4)
                 print_parse_tree(token['value_b'], indentation_level + 4)
-            elif token['exp_type'] == TokenType.LEFT_PARENTHESIS:
+            elif token['exp_type'] == "parenthesis":
                 print(f" (")
                 print_parse_tree(token['value'], indentation_level + 4)
                 print(tab + ")")
@@ -142,6 +142,16 @@ def print_parse_tree(token : dict, indentation_level : int = 0) -> None:
                 case "assignment":
                     print_parse_tree(token["varlist"], indentation_level + 4)
                     print_parse_tree(token["explist"], indentation_level + 4)
+                case "keyword":
+                    match token["value"]:
+                        case "break":
+                            print(tab2 + f"{RED}break{WHITE}")
+                            pass
+                        case "do":
+                            print(tab2 + f"{RED}do{WHITE}")
+                            print_parse_tree(token["block"], indentation_level + 4)
+                            print(tab2 + f"{RED}end{WHITE}")
+                            pass
 
         case "return_statement":
             print()
