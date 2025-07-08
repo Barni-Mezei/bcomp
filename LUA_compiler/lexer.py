@@ -3,7 +3,6 @@
 BUG:
 - This code: print(-- [[comment]]"a") should be error, but is: print ( "a" ) this means
 that comments effect the next token, regardless of the space between them.
-- The sytax: "::label::" outputs the correct tokens, but not at the correct places.
 """
 
 from misc import *
@@ -199,11 +198,13 @@ class Lexer:
                         break
 
                 if result:
+                    starting_token = self.tokens[index]
+
                     for _ in range(len(pattern)):
                         self.tokens.pop(index)
     
-                    self.tokens.insert(index, {"value": pattern, "row": self.tokens[index]["row"], "col": self.tokens[index]["col"] - len(pattern)})
-                    index += len(pattern) - 1
+                    self.tokens.insert(index, {"value": pattern, "row": starting_token["row"], "col": starting_token["col"]})
+                    index += 1
                     break
 
             index += 1
