@@ -3,7 +3,7 @@
 BUG:
 - This code: print(-- [[comment]]"a") should be error, but is: print ( "a" ) this means
 that comments effect the next token, regardless of the space between them.
-
+- The sytax: "::label::" outputs the correct tokens, but not at the correct places.
 """
 
 from misc import *

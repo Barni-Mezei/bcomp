@@ -1,0 +1,36 @@
+/* This is a darkmode css for lua.org, meant to be used in the stylus firefox extension.*/
+
+html {
+    background-color: #222;
+}
+
+body {
+    background-color: #223;
+    color: #aaa;
+    border-color: #666;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: #fff;
+}
+
+img {
+    filter: grayscale() invert();
+}
+
+code {
+    background-color: #222;
+    padding: 3px;
+    border-radius: 3px;border-radius: 3px;
+}
+
+a:link, a:visited {
+    color: #fff;
+    text-decoration: underline;
+}
+
+a:hover {
+    background-color: transparent !important;
+    color: #aaa !important;
+    text-decoration: none;
+}

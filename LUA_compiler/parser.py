@@ -1,4 +1,9 @@
 """
+LUA version: 5.3
+
+Resources:
+https://www.lua.org/manual/5.3/manual.html
+
 The currently implemented BNF:
 ------------------------------
 chunk ::= block
@@ -72,8 +77,6 @@ class Parser:
         self.tokens = tokens
         self.code_pointer = 0
 
-
-        self.error_stack = []
         self.debug_indent = 0
 
         self.generate_parse_tree()
@@ -148,9 +151,6 @@ class Parser:
         t = self._peek()
 
         raise ParsingError(t.row, t.col, f"Unexpected symbol near '{self._peek_prev().value}' expected '{value}'" + message)
-
-    def push_error(self, error : ParsingError):
-        self.error_stack.append(error)
 
     ###########
     # Grammar #
@@ -452,7 +452,7 @@ class Parser:
         self.expect(value = "=")
 
         result_explist = self.grammar_get_explist()
-        if not result_explist: return False
+        if not result_explist: raise ParsingError(self._peek_prev().row, self._peek_prev().col, "An exression is expected!")
 
         return {"type": "statement", "stat_type": "assignment", "varlist": result_varlist, "explist": result_explist}
 
@@ -467,6 +467,8 @@ class Parser:
     # TOKEN
     @log_function
     def try_statement_do(self) -> dict:
+        token = self._peek()
+        
         if self.accept(token_type = TokenType.KEYWORD, value = "do"):
 
             # Reset recursion limits
@@ -486,6 +488,30 @@ class Parser:
 
     # TOKEN
     @log_function
+    def try_statement_label(self) -> dict:
+        if not self.accept(token_type = TokenType.PUNCTUATION, value = "::"): return False
+
+        token = self._peek()
+
+        self.expect(token_type = TokenType.IDENTIFIER)
+        self.expect(token_type = TokenType.PUNCTUATION, value = "::")
+
+        return {"type": "statement", "stat_type": "label", "value": token.value, "row": token.row, "col": token.col}
+    
+    # TOKEN
+    @log_function
+    def try_statement_goto(self) -> dict:
+        token = self._peek()
+        if not self.accept(token_type = TokenType.KEYWORD, value = "goto"): return False
+
+        name_token = self._peek()
+
+        self.expect(token_type = TokenType.IDENTIFIER)
+
+        return {"type": "statement", "stat_type": "keyword", "value": "goto", "label": name_token.value, "row": token.row, "col": token.col}
+
+    # TOKEN
+    @log_function
     def try_statement_local(self) -> dict:
         if self.accept(token_type = TokenType.KEYWORD, value = "local"):
             result_namelist = self.grammar_get_namelist()
@@ -500,13 +526,18 @@ class Parser:
 
         return False
 
+   
+
+
     @log_function
     def try_statement(self) -> dict:
         # Try all defined statements
         all_statements = [
             self.try_statement_semicolon, # Looks like: ";"
             self.try_statement_assignment, # Looks like: "a.k, b = 'test', 8"
+            self.try_statement_label, # Looks like: "::" <name> "::"
             self.try_statement_break, # Looks like: "break"
+            self.try_statement_goto, # Looks like: "goto" <name>
             self.try_statement_do, # Looks like: "do" <block> "end"
             self.try_statement_local, # Looks like: "local" <namelist> ["=" <explist>]
         ]
@@ -544,6 +575,8 @@ class Parser:
     # TOKEN
     @log_function
     def try_block_return_statement(self) -> dict:
+        token = self._peek()
+
         if self.accept(value = "return"):
 
             explist_result = self.grammar_get_explist()
@@ -551,7 +584,7 @@ class Parser:
 
             self.accept(value = ";")
 
-            return {"type": "return_statement", "explist": explist_result}
+            return {"type": "return_statement", "explist": explist_result, "row": token.row, "col": token.col}
 
         return False
 
@@ -589,4 +622,95 @@ class Parser:
             for _ in range(len(self.error_stack)):
                 print(self.error_stack.pop(0))
     
+        # Debug
         print("Tree:", self.tree)
+
+
+
+    # Prints a single token out to the screen, as a tree
+    def print_parse_tree(self, token : dict = None, indentation_level : int = 0) -> None:
+        if token is None and self.tree:
+            self.print_parse_tree(self.tree)
+            return
+
+        tab = " " * indentation_level
+        tab2 = " " * (indentation_level + 4)
+
+        #print("TOKEN", token)
+        print(tab + f"{token['type'].replace("_", " ").capitalize()}:", end="")
+
+        match token["type"]:
+            case "var":
+                print(f" '{token['value']}'")
+
+            case "exp":
+                if token['exp_type'] == "unary_expression":
+                    print(f" '{token['operand']}' (unop)")
+                    self.print_parse_tree(token['value'], indentation_level + 4)
+                elif token['exp_type'] == "binary_expression":
+                    print(f" '{token['operand']}'")
+                    self.print_parse_tree(token['value_a'], indentation_level + 4)
+                    self.print_parse_tree(token['value_b'], indentation_level + 4)
+                elif token['exp_type'] == "parenthesis":
+                    print(f" (")
+                    self.print_parse_tree(token['value'], indentation_level + 4)
+                    print(tab + ")")
+                else:
+                    print(f" '{token['value']}' ({token['exp_type']})")
+
+            case "varlist":
+                print()
+                for v in token["vars"]: self.print_parse_tree(v, indentation_level + 4)
+            
+            case "namelist":
+                print()
+                for n in token["names"]: print(tab2 + "Name: '" + n + "'")
+
+            case "explist":
+                print()
+                for e in token["exps"]: self.print_parse_tree(e, indentation_level + 4)
+
+            case "statement":
+                print(f" ({token['stat_type']})")
+                match token["stat_type"]:
+                    case "semicolon":
+                        pass
+                    
+                    case "assignment":
+                        self.print_parse_tree(token["varlist"], indentation_level + 4)
+                        self.print_parse_tree(token["explist"], indentation_level + 4)
+                    
+                    case "label":
+                        print(tab2 + f"{AQUA}::{token['value']}::{WHITE}")
+
+                    case "keyword":
+                        match token["value"]:
+                            case "break":
+                                print(tab2 + f"{RED}break{WHITE}")
+
+                            case "do":
+                                print(tab2 + f"{RED}do{WHITE}")
+                                self.print_parse_tree(token["block"], indentation_level + 4)
+                                print(tab2 + f"{RED}end{WHITE}")
+
+                            case "local":
+                                print(tab2 + f"{RED}local{WHITE}")
+                                self.print_parse_tree(token["namelist"], indentation_level + 4)
+                                if token["explist"]: 
+                                    self.print_parse_tree(token["explist"], indentation_level + 4)
+
+                            case "goto":
+                                print(tab2 + f"{RED}goto{WHITE}")
+                                print(tab2 + f"Label: {AQUA}{token['label']}{WHITE}")
+
+            case "return_statement":
+                print()
+                self.print_parse_tree(token["explist"], indentation_level + 4)
+
+            case "block":
+                print()
+                print(tab2 + f"Statements:")
+                for s in token["statements"]: self.print_parse_tree(s, indentation_level + 8)
+
+                if token["return_statement"]:
+                    self.print_parse_tree(token["return_statement"], indentation_level + 4)

@@ -1,3 +1,1 @@
-local space = ' '
-out = "Hello"..space.."world"
-return out
+a = 6
