@@ -65,26 +65,26 @@ class Parser:
     recursion = { # The maximum number of chained 
         "prefixexp": { # prefixexp: "a.b.c.d.e.f" or "a[b[c[d[]]]]"
             "value": 0,
-            "current_max": 2,
-            "max": 2,
+            "current_max": 5,
+            "max": 5,
         },
 
         "exp": { # binop "a + b + c + d + e" or "a and b or c"
             "value": 0,
-            "current_max": 2,
-            "max": 2,
+            "current_max": 5,
+            "max": 5,
         },
 
         "functioncall": {
             "value": 0,
-            "current_max": 2,
-            "max": 2,
+            "current_max": 5,
+            "max": 5,
         },
     }
 
     error_stack : list
 
-    log_level : int = 2
+    log_level : int = 0
     debug_indent : int
 
     def __init__(self, tokens):
@@ -624,6 +624,29 @@ class Parser:
 
     # TOKEN
     @log_function
+    def try_statement_while(self) -> dict:
+        token = self._peek()
+        
+        if not self.accept(token_type = TokenType.KEYWORD, value = "while"): return False
+
+        result_exp = self.grammar_get_exp()
+        if not result_exp: raise ParsingError(token.row, token.col, f"Invalid expression, in while loop!")
+
+        self.expect(token_type = TokenType.KEYWORD, value = "do")
+
+        # Reset recursion limits
+        self.recursion["exp"]["current_max"] += self.recursion["exp"]["max"]
+        self.recursion["prefixexp"]["current_max"] += self.recursion["prefixexp"]["max"]
+        result_block = self.grammar_get_block()
+        self.recursion["exp"]["current_max"] -= self.recursion["exp"]["max"]
+        self.recursion["prefixexp"]["current_max"] -= self.recursion["prefixexp"]["max"]
+
+        self.expect(token_type = TokenType.KEYWORD, value = "end")
+
+        return {"type": "statement", "stat_type": "keyword", "value": "while", "exp": result_exp, "block": result_block, "row": token.row, "col": token.col}
+
+    # TOKEN
+    @log_function
     def try_statement_functioncall(self) -> dict:
         return self.grammar_get_functioncall()
 
@@ -679,6 +702,7 @@ class Parser:
             self.try_statement_break, # Looks like: "break"
             self.try_statement_goto, # Looks like: "goto" <name>
             self.try_statement_do, # Looks like: "do" <block> "end"
+            self.try_statement_while, # Looks like: "while" <exp> "do" <block> "end"
             self.try_statement_local, # Looks like: "local" <namelist> ["=" <explist>]
         ]
 
@@ -851,7 +875,18 @@ class Parser:
                             case "break":
                                 print(tab2 + f"{RED}break{WHITE}")
 
+                            case "goto":
+                                print(tab2 + f"{RED}goto{WHITE}")
+                                print(tab2 + f"Label: {AQUA}{token['label']}{WHITE}")
+
                             case "do":
+                                print(tab2 + f"{RED}do{WHITE}")
+                                self.print_parse_tree(token["block"], indentation_level + 4)
+                                print(tab2 + f"{RED}end{WHITE}")
+
+                            case "while":
+                                print(tab2 + f"{RED}while{WHITE}")
+                                self.print_parse_tree(token["exp"], indentation_level + 4)
                                 print(tab2 + f"{RED}do{WHITE}")
                                 self.print_parse_tree(token["block"], indentation_level + 4)
                                 print(tab2 + f"{RED}end{WHITE}")
@@ -861,10 +896,6 @@ class Parser:
                                 self.print_parse_tree(token["namelist"], indentation_level + 4)
                                 if token["explist"]: 
                                     self.print_parse_tree(token["explist"], indentation_level + 4)
-
-                            case "goto":
-                                print(tab2 + f"{RED}goto{WHITE}")
-                                print(tab2 + f"Label: {AQUA}{token['label']}{WHITE}")
 
             case "return_statement":
                 print()

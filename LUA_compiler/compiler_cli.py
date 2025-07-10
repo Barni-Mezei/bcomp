@@ -16,8 +16,9 @@ Made by: Barni - 2025.06.23
 import importlib
 import argparse
 import os
-from misc import *
 import json
+import time
+from misc import *
 from lexer import Lexer
 from parser import Parser, ParsingError
 
@@ -102,6 +103,8 @@ print("\n-----------------")
 ################
 print(f"--- Parsing tokens")
 
+parse_start_time = time.time()
+
 try:
     parser = Parser(lexer.tokens) # Generates parse tree
 except ParsingError as e:
@@ -109,8 +112,12 @@ except ParsingError as e:
     print(f"{RED}\t{e}")
     exit()
 
+parse_end_time = time.time()
+
 # Debug
 parser.print_parse_tree()
+
+print(f"--- Parsing time: {GRAY}{round((parse_end_time - parse_start_time) * 1000, 3)}ms{WHITE}")
 
 # Get file path
 def path_leaf(path):
