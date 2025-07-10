@@ -11,7 +11,8 @@ chunk ::= block
 block ::= {stat} [retstat]
 
 stat ::=  ';' | 
-        varlist '=' explist | 
+        varlist '=' explist |
+        functioncall |
         break | 
         do block end |
         local namelist ['=' <explist>] |
@@ -28,6 +29,8 @@ varlist ::= var {',' var}
 exp ::=  nil | false | true | Numeral | LiteralString | '...' | prefixexp | exp binop exp | unop exp 
 
 explist ::= exp {',' exp}
+
+functioncall ::= prefixexp args | prefixexp ':' Name args
 ------------------------------
 """
 
@@ -69,11 +72,17 @@ class Parser:
             "current_max": 5,
             "max": 5,
         },
+
+        "functioncall": {
+            "value": 0,
+            "current_max": 5,
+            "max": 5,
+        },
     }
 
     error_stack : list
 
-    log_level : int = 0
+    log_level : int = 2
     debug_indent : int
 
     def __init__(self, tokens):
@@ -89,14 +98,14 @@ class Parser:
             self = args[0]
             
             if self.log_level >= 2:
-                print(f"{'| ' * self.debug_indent}Function: {AQUA}{inspect.stack()[1][3]}{WHITE} Current token: {self._peek()}")
+                print(f"{'│ ' * self.debug_indent}Function: {AQUA}{inspect.stack()[1][3]}{WHITE} Current token: {self._peek()}")
                 self.debug_indent += 1
             
             result = func(*args, **kwargs)
             
             if self.log_level >= 2:
                 self.debug_indent -= 1
-                print(f"{'| ' * self.debug_indent}└─")
+                print(f"{'│ ' * self.debug_indent}└─")
             
             return result
         return wrapper
@@ -165,11 +174,16 @@ class Parser:
 
     @log_function
     def try_args_string(self):
-        if not self.accept(token_type = TokenType.STRING_LITERAL) and\
-           not self.accept(token_type = TokenType.MULTILINE_STRING_LITERAL):
-            return False
+        if self.accept(token_type = TokenType.STRING_LITERAL):
+            return {"type": "args", "arg_type": "string", "value": self._peek_prev().value[1:-1], "row": self._peek_prev().row, "col": self._peek_prev().col}
 
-        return {"type": "args", "arg_type": "string", "value": self._peek_prev().value, "row": self._peek_prev().row, "col": self._peek_prev().col}
+        if self.accept(token_type = TokenType.MULTILINE_STRING_LITERAL):
+            if self._peek_prev().value[2] == "=":
+                return {"type": "args", "arg_type": "multiline_string", "value": self._peek_prev().value[3:-3], "row": self._peek_prev().row, "col": self._peek_prev().col}
+            else:
+                return {"type": "args", "arg_type": "multiline_string", "value": self._peek_prev().value[2:-2], "row": self._peek_prev().row, "col": self._peek_prev().col}
+
+        return False
 
 
     @log_function
@@ -184,12 +198,13 @@ class Parser:
 
     @log_function
     def try_args_explist(self):
-        token = self._peek()
+        if not self.accept(value = "("): return False
 
-        result = self.grammar_get_explist()
-        if not result: return False
+        result = self.grammar_get_explist() # Optional
 
-        return {"type": "args", "arg_type": "explist", "value": result, "row": token.row, "col": token.col}
+        self.expect(value = ")")
+
+        return {"type": "args", "arg_type": "explist", "value": result}
 
     @log_function
     def try_args(self):
@@ -248,10 +263,12 @@ class Parser:
 
     @log_function
     def try_functioncall(self):
+        print("Function call!")
+
         # Try all defined function calls
         all_functioncall = [
-            self.try_functioncall_normal, #Looks like: a(4, 5, 6)
             self.try_functioncall_table, #Looks like: a:b(4, 5, 6)
+            self.try_functioncall_normal, #Looks like: a(4, 5, 6)
         ]
 
         # Return with the result
@@ -559,7 +576,7 @@ class Parser:
         result_varlist = self.grammar_get_varlist()
         if not result_varlist: return False
 
-        self.expect(value = "=")
+        if not self.accept(value = "="): return False
 
         result_explist = self.grammar_get_explist()
         if not result_explist: raise ParsingError(self._peek_prev().row, self._peek_prev().col, "An exression is expected!")
@@ -595,6 +612,11 @@ class Parser:
             return {"type": "statement", "stat_type": "keyword", "value": "do", "block": result, "row": self._peek_prev().row, "col": self._peek_prev().col}
 
         return False
+
+    # TOKEN
+    @log_function
+    def try_statement_functioncall(self) -> dict:
+        return self.grammar_get_functioncall()
 
     # TOKEN
     @log_function
@@ -637,14 +659,13 @@ class Parser:
         return False
 
    
-
-
     @log_function
     def try_statement(self) -> dict:
         # Try all defined statements
         all_statements = [
             self.try_statement_semicolon, # Looks like: ";"
             self.try_statement_assignment, # Looks like: "a.k, b = 'test', 8"
+            self.try_statement_functioncall, # Looks like: <functioncall>
             self.try_statement_label, # Looks like: "::" <name> "::"
             self.try_statement_break, # Looks like: "break"
             self.try_statement_goto, # Looks like: "goto" <name>
@@ -654,8 +675,10 @@ class Parser:
 
         # Return with the first result
         for index, statement in enumerate(all_statements):
+            starting_token_index = self.code_pointer # Store pointer before checking grammar
             result = statement()
-            if result != False: return result
+            if result == False: self.code_pointer = starting_token_index # Restore pointer index, if the grammar does not match
+            else: return result
 
         # Default to failure (no statement found)
         return False
