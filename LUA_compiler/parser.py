@@ -20,7 +20,7 @@ stat ::=  ';' |
         break |
         goto Name |
 
-prefixexp ::= var | '(' exp ')'
+prefixexp ::= var | '(' exp ')' | functioncall
 
 var ::=  Name | prefixexp '.' Name
 
@@ -31,6 +31,8 @@ exp ::=  nil | false | true | Numeral | LiteralString | '...' | prefixexp | exp 
 explist ::= exp {',' exp}
 
 functioncall ::= prefixexp args | prefixexp ':' Name args
+
+args ::= '(' [explist] ')' | ?LiteralString?
 ------------------------------
 """
 
@@ -63,20 +65,20 @@ class Parser:
     recursion = { # The maximum number of chained 
         "prefixexp": { # prefixexp: "a.b.c.d.e.f" or "a[b[c[d[]]]]"
             "value": 0,
-            "current_max": 5,
-            "max": 5,
+            "current_max": 2,
+            "max": 2,
         },
 
         "exp": { # binop "a + b + c + d + e" or "a and b or c"
             "value": 0,
-            "current_max": 5,
-            "max": 5,
+            "current_max": 2,
+            "max": 2,
         },
 
         "functioncall": {
             "value": 0,
-            "current_max": 5,
-            "max": 5,
+            "current_max": 2,
+            "max": 2,
         },
     }
 
@@ -98,14 +100,14 @@ class Parser:
             self = args[0]
             
             if self.log_level >= 2:
-                print(f"{'│ ' * self.debug_indent}Function: {AQUA}{inspect.stack()[1][3]}{WHITE} Current token: {self._peek()}")
+                print(f"{'│' * self.debug_indent}Function: {AQUA}{inspect.stack()[1][3]}{WHITE} Current token: {self._peek()}")
                 self.debug_indent += 1
             
             result = func(*args, **kwargs)
             
             if self.log_level >= 2:
                 self.debug_indent -= 1
-                print(f"{'│ ' * self.debug_indent}└─")
+                print(f"{'│' * self.debug_indent}└─")
             
             return result
         return wrapper
@@ -200,9 +202,11 @@ class Parser:
     def try_args_explist(self):
         if not self.accept(value = "("): return False
 
+        start_parenthesis = self._peek_prev()
+
         result = self.grammar_get_explist() # Optional
 
-        self.expect(value = ")")
+        self.expect(value = ")", message = f" to close '(' at {start_parenthesis.place}")
 
         return {"type": "args", "arg_type": "explist", "value": result}
 
@@ -263,8 +267,6 @@ class Parser:
 
     @log_function
     def try_functioncall(self):
-        print("Function call!")
-
         # Try all defined function calls
         all_functioncall = [
             self.try_functioncall_table, #Looks like: a:b(4, 5, 6)
@@ -273,8 +275,10 @@ class Parser:
 
         # Return with the result
         for index, functioncall in enumerate(all_functioncall):
+            starting_token_index = self.code_pointer # Store pointer before checking grammar
             result = functioncall()
-            if result != False: return result
+            if result == False: self.code_pointer = starting_token_index # Restore pointer index, if the grammar does not match
+            else: return result
 
         # Default to failure (no functioncall found)
         return False
@@ -288,28 +292,29 @@ class Parser:
     ###################
 
     @log_function
+    def try_prefixexp_functioncall(self):
+        return self.grammar_get_functioncall()
+
+    @log_function
     def try_prefixexp_var(self):
         return self.grammar_get_var()
 
     @log_function
     def try_prefixexp_exp(self):
-        if self.accept(value = "("):
+        if not self.accept(value = "("): return False
 
-            start_parenthesis = self._peek_prev()
+        start_parenthesis = self._peek_prev()
 
-            # Reset recursion counter for expressions, inside parenthesis
-            self.recursion["exp"]["current_max"] += self.recursion["exp"]["max"]
-            result = self.grammar_get_exp()
-            self.recursion["exp"]["current_max"] -= self.recursion["exp"]["max"]
+        # Reset recursion counter for expressions, inside parenthesis
+        self.recursion["exp"]["current_max"] += self.recursion["exp"]["max"]
+        result = self.grammar_get_exp()
+        self.recursion["exp"]["current_max"] -= self.recursion["exp"]["max"]
 
-            if not result: return False
+        if not result: return False
 
-            self.expect(value = ")", message = f" to close '(' at {start_parenthesis.place}")
+        self.expect(value = ")", message = f" to close '(' at {start_parenthesis.place}")
 
-            return {"type": "exp", "exp_type": "parenthesis", "value": result, "row": start_parenthesis.row, "col": start_parenthesis.col}
-
-
-        return False
+        return {"type": "exp", "exp_type": "parenthesis", "value": result, "row": start_parenthesis.row, "col": start_parenthesis.col}
 
     @log_function
     def try_prefixexp(self):
@@ -318,6 +323,10 @@ class Parser:
             self.try_prefixexp_exp, #Looks like: "(" <exp> ")"
             self.try_prefixexp_var, #Looks like: <var>
         ]
+
+        if self.recursion["functioncall"]["value"] < self.recursion["functioncall"]["current_max"]:
+            self.recursion["functioncall"]["value"] += 1
+            all_prefixexp.insert(2, self.try_prefixexp_functioncall)
 
         # Return with the result
         for index, prefixexp in enumerate(all_prefixexp):
@@ -777,19 +786,40 @@ class Parser:
                 print(f" '{token['value']}'")
 
             case "exp":
-                if token['exp_type'] == "unary_expression":
-                    print(f" '{token['operand']}' (unop)")
-                    self.print_parse_tree(token['value'], indentation_level + 4)
-                elif token['exp_type'] == "binary_expression":
-                    print(f" '{token['operand']}'")
-                    self.print_parse_tree(token['value_a'], indentation_level + 4)
-                    self.print_parse_tree(token['value_b'], indentation_level + 4)
-                elif token['exp_type'] == "parenthesis":
-                    print(f" (")
-                    self.print_parse_tree(token['value'], indentation_level + 4)
-                    print(tab + ")")
-                else:
-                    print(f" '{token['value']}' ({token['exp_type']})")
+                match token['exp_type']:
+                    case "unary_expression":
+                        print(f" '{token['operand']}' (unop)")
+                        self.print_parse_tree(token['value'], indentation_level + 4)
+                    
+                    case "binary_expression":
+                        print(f" '{token['operand']}'")
+                        self.print_parse_tree(token['value_a'], indentation_level + 4)
+                        self.print_parse_tree(token['value_b'], indentation_level + 4)
+                    
+                    case "parenthesis":
+                        print(f" (")
+                        self.print_parse_tree(token['value'], indentation_level + 4)
+                        print(tab + ")")
+                    
+                    case _:
+                        print(f" '{token['value']}' ({token['exp_type']})")
+
+            case "args":
+                match token['arg_type']:
+                    case "explist":
+                        print(f" (explist)")
+                        if token['value']: self.print_parse_tree(token['value'], indentation_level + 4)
+                    
+                    case "string":
+                        print(f" (string)")
+                        self.print_parse_tree(token['value'], indentation_level + 4)
+                    
+                    case "table":
+                        print(f" (table)")
+                        self.print_parse_tree(token['value'], indentation_level + 4)
+                    
+                    case _:
+                        print(f"{RED}Unknown{WHITE}")
 
             case "varlist":
                 print()
@@ -847,3 +877,11 @@ class Parser:
 
                 if token["return_statement"]:
                     self.print_parse_tree(token["return_statement"], indentation_level + 4)
+
+            case "functioncall":
+                print()
+                print(tab2 + f"Prefix:")
+                self.print_parse_tree(token["prefix"], indentation_level + 8)
+                print(tab2 + f"Name: {AQUA}'{token["name"]}'{WHITE}")
+                print(tab2 + f"Arguments:")
+                self.print_parse_tree(token["args"], indentation_level + 8)
