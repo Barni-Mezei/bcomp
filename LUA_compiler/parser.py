@@ -14,7 +14,10 @@ stat ::=  ';' |
         varlist '=' explist | 
         break | 
         do block end |
-        local namelist ['=' <explist>]
+        local namelist ['=' <explist>] |
+        '::' Name '::' |
+        break |
+        goto Name |
 
 prefixexp ::= var | '(' exp ')'
 
@@ -155,6 +158,113 @@ class Parser:
     ###########
     # Grammar #
     ###########
+
+    ##############
+    # Get <args> #
+    ##############
+
+    @log_function
+    def try_args_string(self):
+        if not self.accept(token_type = TokenType.STRING_LITERAL) and\
+           not self.accept(token_type = TokenType.MULTILINE_STRING_LITERAL):
+            return False
+
+        return {"type": "args", "arg_type": "string", "value": self._peek_prev().value, "row": self._peek_prev().row, "col": self._peek_prev().col}
+
+
+    @log_function
+    def try_args_table(self):
+        token = self._peek()
+
+        result = self.grammar_get_tableconstructor()
+        if not result: return False
+
+        return {"type": "args", "arg_type": "table", "value": result, "row": token.row, "col": token.col}
+
+
+    @log_function
+    def try_args_explist(self):
+        token = self._peek()
+
+        result = self.grammar_get_explist()
+        if not result: return False
+
+        return {"type": "args", "arg_type": "explist", "value": result, "row": token.row, "col": token.col}
+
+    @log_function
+    def try_args(self):
+        # Try all defined arguments
+        all_args = [
+            self.try_args_explist, #Looks like: (4, a, "e")
+            #self.try_args_table, #Looks like: {a = 5}
+            self.try_args_string, #Looks like: "a"
+        ]
+
+        # Return with the result
+        for index, arg in enumerate(all_args):
+            result = arg()
+            if result != False: return result
+
+        # Default to failure (no argument found)
+        return False
+
+    @log_function
+    def grammar_get_args(self):
+        return self.try_args()
+
+
+    ######################
+    # Get <functioncall> #
+    ######################
+
+    @log_function
+    def try_functioncall_table(self):
+        token = self._peek()
+
+        result_prefix = self.grammar_get_prefixexp()
+        if not result_prefix: return False
+        
+        if not self.accept(value = ":"): return False
+
+        result_name = self._peek()
+        self.expect(token_type = TokenType.IDENTIFIER)
+
+        result_args = self.grammar_get_args()
+        if not result_args: return False
+
+        return {"type": "functioncall", "prefix": result_prefix, "name": result_name.value, "args": result_args, "row": token.row, "col": token.col}
+
+    @log_function
+    def try_functioncall_normal(self):
+        token = self._peek()
+
+        result_prefix = self.grammar_get_prefixexp()
+        if not result_prefix: return False
+        
+        result_args = self.grammar_get_args()
+        if not result_args: return False
+
+        return {"type": "functioncall", "prefix": result_prefix, "name":"", "args": result_args, "row": token.row, "col": token.col}
+
+    @log_function
+    def try_functioncall(self):
+        # Try all defined function calls
+        all_functioncall = [
+            self.try_functioncall_normal, #Looks like: a(4, 5, 6)
+            self.try_functioncall_table, #Looks like: a:b(4, 5, 6)
+        ]
+
+        # Return with the result
+        for index, functioncall in enumerate(all_functioncall):
+            result = functioncall()
+            if result != False: return result
+
+        # Default to failure (no functioncall found)
+        return False
+
+    @log_function
+    def grammar_get_functioncall(self):
+        return self.try_functioncall()
 
     ###################
     # Get <prefixexp> #
