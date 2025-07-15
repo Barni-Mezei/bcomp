@@ -13,12 +13,13 @@ block ::= {stat} [retstat]
 stat ::=  ';' | 
         varlist '=' explist |
         functioncall |
-        break | 
-        do block end |
-        local namelist ['=' <explist>] |
         '::' Name '::' |
-        break |
+        break | 
         goto Name |
+        do block end |
+        while exp do block end |
+        repeat block until exp |
+        local namelist ['=' explist] |
 
 prefixexp ::= var | '(' exp ')' | functioncall
 
@@ -645,6 +646,28 @@ class Parser:
 
         return {"type": "statement", "stat_type": "keyword", "value": "while", "exp": result_exp, "block": result_block, "row": token.row, "col": token.col}
 
+     # TOKEN
+    @log_function
+    def try_statement_repeat(self) -> dict:
+        token = self._peek()
+        
+        if not self.accept(token_type = TokenType.KEYWORD, value = "repeat"): return False
+
+        # Reset recursion limits
+        self.recursion["exp"]["current_max"] += self.recursion["exp"]["max"]
+        self.recursion["prefixexp"]["current_max"] += self.recursion["prefixexp"]["max"]
+        result_block = self.grammar_get_block()
+        self.recursion["exp"]["current_max"] -= self.recursion["exp"]["max"]
+        self.recursion["prefixexp"]["current_max"] -= self.recursion["prefixexp"]["max"]
+
+        self.expect(token_type = TokenType.KEYWORD, value = "until")
+
+        result_exp = self.grammar_get_exp()
+        if not result_exp: raise ParsingError(token.row, token.col, f"Invalid expression, in repeat until!")
+        
+        return {"type": "statement", "stat_type": "keyword", "value": "repeat", "exp": result_exp, "block": result_block, "row": token.row, "col": token.col}
+
+
     # TOKEN
     @log_function
     def try_statement_functioncall(self) -> dict:
@@ -703,6 +726,7 @@ class Parser:
             self.try_statement_goto, # Looks like: "goto" <name>
             self.try_statement_do, # Looks like: "do" <block> "end"
             self.try_statement_while, # Looks like: "while" <exp> "do" <block> "end"
+            self.try_statement_repeat, # Looks like: "repeat" <block> "until" <exp>
             self.try_statement_local, # Looks like: "local" <namelist> ["=" <explist>]
         ]
 
@@ -890,6 +914,12 @@ class Parser:
                                 print(tab2 + f"{RED}do{WHITE}")
                                 self.print_parse_tree(token["block"], indentation_level + 4)
                                 print(tab2 + f"{RED}end{WHITE}")
+
+                            case "repeat":
+                                print(tab2 + f"{RED}repeat{WHITE}")
+                                self.print_parse_tree(token["block"], indentation_level + 4)
+                                print(tab2 + f"{RED}until{WHITE}")
+                                self.print_parse_tree(token["exp"], indentation_level + 4)
 
                             case "local":
                                 print(tab2 + f"{RED}local{WHITE}")
