@@ -99,8 +99,9 @@ ports = {
 }
 break_points = []
 counter = 0
+cycle_count = 0
 has_jumped = False
-result = "" #Result of the last program
+result = "" # Result of the last program
 
 def loadProgram(file_path):
     global rom
@@ -563,17 +564,17 @@ def NeoGetColor(r, g, b):
     if r == 1 and g == 1 and b == 1: return "\033[0m"  # White
 
 def handleOutputDevices():
-    #Console port[0]
+    # Console port[0]
     if ports['output'][0][0]:
         pass
 
-    #Console port[1] number
+    # Console port[1] number
     if ports['output'][1][0]:
         if debug: print(f"- DEVICE 'Console': Printing value (number)")
         print(f"{f'{GRAY}$ ' if result == 'break' else ''}{GRAY}{decToBin(ports['output'][1][1], 16)} {WHITE}{ports['output'][1][1]:>5d}{WHITE}")
         ports['output'][1][0] = False
 
-    #Console port[2] character
+    # Console port[2] character
     if ports['output'][2][0]:
         if debug: print(f"- DEVICE 'Console': Printing value (character)")
         char_code = ports['output'][2][1]
@@ -581,7 +582,7 @@ def handleOutputDevices():
         print(char, end="")
         ports['output'][2][0] = False
 
-    #Display command port[3]
+    # Display command port[3]
     if ports['output'][3][0]:
         #Command mode
         if decToBin(ports['output'][3][1], 16)[0] == "1":
@@ -595,14 +596,14 @@ def handleOutputDevices():
             devices['display']['row_index'] = trimToSize(ports['output'][3][1], 4)
         ports['output'][2][0] = False
 
-    #Display row data port[4]
+    # Display row data port[4]
     if ports['output'][4][0]:
         if debug: print(f"- DEVICE 'Display': Writing row: {decToBin(ports['output'][4][1], 16)}")
         devices['display']['matrix'][devices['display']['row_index']] = [int(b) for b in decToBin(ports['output'][4][1], 16)]
         ports['output'][4][0] = False
 
 
-    #NeoDisplay control port[7]
+    # NeoCOMP display port[7]
     if ports['output'][7][0]:
         if debug: print(f"- DEVICE 'NeoDisplay': Writing: {decToBin(ports['output'][7][1], 16)}")
 
@@ -620,9 +621,9 @@ def handleOutputDevices():
 
         # Erase matrices if clear signal was sent
         if clear:
-            devices['neo_display']['r_matrix'] = lib.matrixLib.createMatrix(16, 16, 0)
-            devices['neo_display']['g_matrix'] = lib.matrixLib.createMatrix(16, 16, 0)
-            devices['neo_display']['b_matrix'] = lib.matrixLib.createMatrix(16, 16, 0)
+            devices['neo_display']['r_matrix'] = lib.matrixLib.createMatrix(16, 16, r)
+            devices['neo_display']['g_matrix'] = lib.matrixLib.createMatrix(16, 16, g)
+            devices['neo_display']['b_matrix'] = lib.matrixLib.createMatrix(16, 16, b)
 
         # Set pixel
         lib.matrixLib.setpixelAt(devices['neo_display']['r_matrix'], x,y, r)
@@ -806,9 +807,10 @@ def commandReset():
     global stacks
 
     counter = 0
+    cycle_count = 0
     debug = False
     memory = initialiseMemory()
-    
+
     for r in registers: registers[r] = 0
     for s in stacks: stacks[s]["value"] = []
 
@@ -872,24 +874,25 @@ while user_in != "exit":
         commandBreakpointClear()
 
     if user_in == "run" or (result == "break" and user_in == ""):
-        #print(break_points)
         if result != "break":
             print(f"--- Starting {AQUA}execution{WHITE}")
             counter = 0
+            cycle_count = 0
         while counter < len(rom):
-            #Execute the command
+            # Execute the command
             result = executeLine(counter)
-            #Advance the clock
+            # Advance the clock
             counter += 1
-            #IO
+            cycle_count += 1
+            # IO
             handleOutputDevices()
             if result != "": break
 
         if result != "break": #  or counter >= len(rom) - 1
-            print(f"--- Execution {AQUA}finished {WHITE}at address {counter - 1}")
+            print(f"--- Execution {AQUA}finished {WHITE}at address {counter - 1} took {cycle_count} cycles ({AQUA}{cycle_count/600:.4}min{WHITE})")
             result = ""
 
             if args.exit: break
 
-#Close tkinter window
+# Close tkinter window
 print(f"{WHITE}Bye!")
