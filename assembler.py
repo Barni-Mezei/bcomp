@@ -23,7 +23,7 @@ try:
     arguments = arg_parser.parse_args()
 except Exception as e:
     print(f"{RED}ERROR: {str(e).capitalize()}{WHITE}")
-    exit()
+    exit(1)
 
 """if len(sys.argv[1::]) == 0:
     print(f"{RED}No input file given!{WHITE}")
@@ -101,7 +101,7 @@ try:
             })
 except FileNotFoundError as e:
     print(f"{RED}File not found!{WHITE}")
-    exit()
+    exit(1)
 
 ASM_VERSION = ASM_VERSION.strip()
 print(f"--- Importing macros for assembly version: {AQUA}{ASM_VERSION}{WHITE}")
@@ -127,7 +127,7 @@ while i < len(read_lines):
     print(f"{GRAY}Executing macro {AQUA}{macro_name}{WHITE}")
 
     result = MACRO.Execute(macro_name, data["tokens"][1::])
-    if not result.success: exit()
+    if not result.success: exit(1)
 
     inserted_code_length = len(result.instructions)
     insertion_line_index = read_lines[i]["index"]
@@ -210,7 +210,7 @@ for _, data in enumerate(read_lines):
     #Is keyword?
     if not ins in commands:
         print(f"{RED}ERROR: Unrecognised keyword: '{ins.upper()}'!{WHITE}")
-        exit()
+        exit(1)
 
     # Convert string and int arguments to list
     if type(arg) == str: arg = [arg]
@@ -225,7 +225,7 @@ for _, data in enumerate(read_lines):
         if a[0] == ":":
             if not label_arg in labels:
                 print(f"{RED}ERROR: Unrecognised label: {WHITE}{label_arg}")
-                exit()
+                exit(1)
 
             arg[i] = str(labels[label_arg])
             print(f"{GRAY}Replacing label {AQUA}{label_arg}{GRAY} with {WHITE}{labels[label_arg]}")
@@ -234,7 +234,7 @@ for _, data in enumerate(read_lines):
         if a[0] == "$":
             if not constant_arg in constants:
                 print(f"{RED}ERROR: Unrecognised constant: {WHITE}{constant_arg}")
-                exit()
+                exit(1)
 
             arg[i] = str(constants[constant_arg])
             print(f"{GRAY}Replacing constant {AQUA}{constant_arg}{GRAY} with {WHITE}{constants[constant_arg]}")
@@ -243,7 +243,7 @@ for _, data in enumerate(read_lines):
         if a[0] == "R":
             if not built_in_arg in built_in:
                 print(f"{RED}ERROR: Unrecognised built-in value: {WHITE}{built_in_arg}")
-                exit()
+                exit(1)
 
             arg[i] = str(built_in[built_in_arg])
             print(f"{GRAY}Replacing built-in value {AQUA}{built_in_arg}{GRAY} with {WHITE}{built_in[built_in_arg]}")
@@ -261,7 +261,7 @@ for _, data in enumerate(read_lines):
             bin_arg = decToBin(parseNumber(a, throwError = True), 16 // len(arg)) + bin_arg
         except Exception as e:
             print(f"{RED}ERROR: Invalid argument! (Numbers only){WHITE}")
-            exit()
+            exit(1)
 
     #print("bin_arg", bin_arg)
 

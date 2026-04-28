@@ -2,11 +2,11 @@ import sys
 
 if len(sys.argv[1::]) == 0:
     print("No input file given!")
-    exit()
+    exit(1)
 
 if not ".csv" in sys.argv[1]:
     print("Invalid or missing file type! (Must be .csv)")
-    exit()
+    exit(1)
 
 print(f"--- Parsing '{sys.argv[1]}'")
 

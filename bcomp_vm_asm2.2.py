@@ -3,6 +3,7 @@ from lib.lib import *
 import lib.matrixLib
 #import keyboard # type: ignore
 from time import sleep, time
+import argparse
 
 """
 TODO: argparse:
@@ -12,9 +13,21 @@ TODO: argparse:
 interrupts
 """
 
-if len(sys.argv) > 1 and not ".o" in sys.argv[1]:
-    print(f"{RED}Invalid or missing file type! (Must be .o){WHITE}")
-    exit()
+parser = argparse.ArgumentParser(
+    prog="Bcomp asm V2.2",
+    description="A bcomp emulator",
+    epilog="")
+
+parser.add_argument("-p", "--program", help="The path to a comipled program (Must be a .o file) This file will be loaded into the ROM")
+parser.add_argument("-r", "--run",   action="store_true", help="Toggles whenever to run the program immediately after loading it")
+parser.add_argument("-d", "--debug", action="store_true", help="Toggles whenever to run the program in debug mode after loading it")
+parser.add_argument("-e", "--exit",  action="store_true", help="If this flag is set, the program will exit after execution")
+
+args = parser.parse_args()
+
+if args.program is not None and not ".o" in args.program:
+    print(f"{RED}Invalid program file type! (Must be .o){WHITE}")
+    exit(1)
 
 NUMBER_OF_BITS = 16
 MAX_NUMBER = 2**NUMBER_OF_BITS
@@ -27,6 +40,13 @@ devices = {
     'display': {
         'row_index': 0,
         'matrix': lib.matrixLib.createMatrix(16, 16, 0),
+    },
+
+    'neo_display': {
+        'rgb_mode': False,
+        'r_matrix': lib.matrixLib.createMatrix(16, 16, 0),
+        'g_matrix': lib.matrixLib.createMatrix(16, 16, 0),
+        'b_matrix': lib.matrixLib.createMatrix(16, 16, 0),
     },
 }
 
@@ -532,6 +552,16 @@ def handleInputDevices(selectedDevice):
     if selectedDevice == 2: # Milliseconds
         ports['input'][selectedDevice][1] = trimToSize(round(time() * 1000), NUMBER_OF_BITS)
 
+def NeoGetColor(r, g, b):
+    if r == 0 and g == 0 and b == 0: return "\033[30m" # Black
+    if r == 1 and g == 0 and b == 0: return "\033[31m" # Red
+    if r == 1 and g == 1 and b == 0: return "\033[93m" # Yellow
+    if r == 0 and g == 1 and b == 0: return "\033[32m" # Green
+    if r == 0 and g == 1 and b == 1: return "\033[36m" # Aqua
+    if r == 0 and g == 0 and b == 1: return "\033[34m" # Blue
+    if r == 1 and g == 0 and b == 1: return "\033[35m" # Magenta
+    if r == 1 and g == 1 and b == 1: return "\033[0m"  # White
+
 def handleOutputDevices():
     #Console port[0]
     if ports['output'][0][0]:
@@ -570,6 +600,48 @@ def handleOutputDevices():
         if debug: print(f"- DEVICE 'Display': Writing row: {decToBin(ports['output'][4][1], 16)}")
         devices['display']['matrix'][devices['display']['row_index']] = [int(b) for b in decToBin(ports['output'][4][1], 16)]
         ports['output'][4][0] = False
+
+
+    #NeoDisplay control port[7]
+    if ports['output'][7][0]:
+        if debug: print(f"- DEVICE 'NeoDisplay': Writing: {decToBin(ports['output'][7][1], 16)}")
+
+        data = decToBin(ports['output'][7][1], 16)
+
+        x = binToDec(data[10:16])
+        y = binToDec(data[6:10])
+
+        b = int(data[0])
+        g = int(data[1])
+        r = int(data[2])
+
+        rgb = data[4] == "1"
+        clear = data[5] == "1"
+
+        # Erase matrices if clear signal was sent
+        if clear:
+            devices['neo_display']['r_matrix'] = lib.matrixLib.createMatrix(16, 16, 0)
+            devices['neo_display']['g_matrix'] = lib.matrixLib.createMatrix(16, 16, 0)
+            devices['neo_display']['b_matrix'] = lib.matrixLib.createMatrix(16, 16, 0)
+
+        # Set pixel
+        lib.matrixLib.setpixelAt(devices['neo_display']['r_matrix'], x,y, r)
+        lib.matrixLib.setpixelAt(devices['neo_display']['g_matrix'], x,y, g)
+        lib.matrixLib.setpixelAt(devices['neo_display']['b_matrix'], x,y, b)
+
+        # Render matrix
+        print()
+        for y in range(16):
+            for x in range(16):
+                r = devices['neo_display']['r_matrix'][y][x]
+                g = devices['neo_display']['g_matrix'][y][x]
+                b = devices['neo_display']['b_matrix'][y][x]
+                color = NeoGetColor(r, g, b)
+
+                print(f"{color}██{WHITE}", end="")
+            print()
+
+        ports['output'][7][0] = False
 
 ###############################
 ## Built-in console commands ##
@@ -636,7 +708,7 @@ def commandDumpPort():
     print(f"{GRAY}4: {WHITE}-                     Display row data")
     print(f"{GRAY}5: {WHITE}-                     -")
     print(f"{GRAY}6: {WHITE}-                     -")
-    print(f"{GRAY}7: {WHITE}-                     -")
+    print(f"{GRAY}7: {WHITE}-                     NeoCOMP display")
 
 def commandDumpStacks():
     print(f"The call stack ({len(stacks["call"])}):")
@@ -756,7 +828,8 @@ commands, command_lookup = load_commands(False)
 #command_lookup = ["" for _ in range(0, 32)]
 #for key in commands: command_lookup[int(commands[key][0])] = key
 
-if len(sys.argv) >= 2: loadProgram(sys.argv[1])
+if args.program is not None:
+    loadProgram(args.program)
 
 print(f"--- Starting {AQUA}console{WHITE}")
 
@@ -764,9 +837,19 @@ commandDumpRom()
 
 user_in = ""
 debug = False
+
+# Handle command line arguments
+if args.run:
+    user_in = "__execute"
+
+if args.debug:
+    debug = True
+    user_in = "__execute"
+
 while user_in != "exit":
     try:
-        user_in = input(f"{RED if result == 'break' else AQUA}: {GRAY}")
+        if user_in == "__execute": user_in = "run"
+        else: user_in = input(f"{RED if result == 'break' else AQUA}: {GRAY}")
     except KeyboardInterrupt as e:
         break
 
@@ -805,6 +888,8 @@ while user_in != "exit":
         if result != "break": #  or counter >= len(rom) - 1
             print(f"--- Execution {AQUA}finished {WHITE}at address {counter - 1}")
             result = ""
+
+            if args.exit: break
 
 #Close tkinter window
 print(f"{WHITE}Bye!")
