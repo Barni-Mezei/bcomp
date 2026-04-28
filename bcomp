@@ -1,0 +1,8 @@
+
+#!/bin/bash
+
+# $1 Is the containing folder of your assembly script
+# $2 Is the name of your assembly file, without the file extension
+
+# Asembles, and the enxecutes the program
+python3 assembler.py $1/$2.asm && python3 bcomp_vm_asm2.2.py -p binaries/$2.o -re

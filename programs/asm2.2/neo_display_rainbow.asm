@@ -3,7 +3,7 @@
 $port_neo_display 7
 
 ; Clear display
-sta 0b111_0_11_0000_000000
+sta 0b000_0_11_0000_000000
 out RA, $port_neo_display
 
 ; Load image drawing code
