@@ -1,21 +1,21 @@
 import sys
 from lib.lib import *
 import lib.matrixLib
-#import keyboard # type: ignore
 from time import sleep, time
 import argparse
 
-"""
-TODO: argparse:
--r run code immediately, no debug
--d run code immediately, with debug, stop at jumps (auto breakpoint)
+#import keyboard # type: ignore
 
-interrupts
+"""
+TODO:
+- Interrupt handling
+- Interrupt triggers (keypresses, hardware timers)
+- Interrupt addresses should be pushed to the call stack before jumping to the interrupt handler
 """
 
 parser = argparse.ArgumentParser(
-    prog="Bcomp asm V2.2",
-    description="A bcomp emulator",
+    prog="BCOMP emulator (asm V2.2)",
+    description="This is a BCOMP emulator for the bcomp asm V2.2 version",
     epilog="")
 
 parser.add_argument("-p", "--program", help="The path to a comipled program (Must be a .o file) This file will be loaded into the ROM")
@@ -29,6 +29,7 @@ if args.program is not None and not ".o" in args.program:
     print(f"{RED}Invalid program file type! (Must be .o){WHITE}")
     exit(1)
 
+# Bcomp is a 16 bit machine
 NUMBER_OF_BITS = 16
 MAX_NUMBER = 2**NUMBER_OF_BITS
 

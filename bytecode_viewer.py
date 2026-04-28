@@ -16,8 +16,6 @@ print(f"--- Loading {AQUA}commands{WHITE}")
 #Load commands and construct key lookup table
 commands, command_lookup = load_commands(False)
 
-
-
 #[
 #    {"from": 3, "to": 5}
 #]

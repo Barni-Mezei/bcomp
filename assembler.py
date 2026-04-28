@@ -12,7 +12,7 @@ arg_parser = argparse.ArgumentParser(
 
 arg_parser.add_argument('input_file', help="The path to your '.asm' file")
 arg_parser.add_argument('-o', '--output-path', help="The path to the directory, that will contain your compiled code")
-arg_parser.add_argument('-f', '--file-name', help="The name of your compiled file. Filetype will be ignored!")
+arg_parser.add_argument('-f', '--file-name', help="The name of your compiled file. File type will be ignored!")
 arg_parser.add_argument('-cpp', '--cpp', default=False, action='store_true', help="Export as C++ array for importing to Arduino")
 arg_parser.add_argument('-ino', '--arduino', default=False, action='store_true', help="Export as C++ array in to the specified arduino file")
 arg_parser.add_argument('-v', '--version', default="0", type=str, help="The assembly version. Set to 0 to read from file. (Requires the 1st line to be a comment)")
